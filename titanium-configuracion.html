@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Titanium · Configuración</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="titanium-config.js"></script>
+<style>
+  :root{
+    --bg:#0d0f14; --bg2:#141821; --card:#1a1f2b; --card2:#20263485;
+    --line:#2a3141; --txt:#e8ecf3; --txt2:#9aa4b6; --txt3:#6b7488;
+    --acc:#ff7a1a; --acc2:#ffa04d; --ok:#2fd07a; --warn:#f7b731; --bad:#ff5964;
+    --radio:14px; --sombra:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%, #1b2130 0%, var(--bg) 55%);
+    color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased;}
+  .oculto{display:none !important}
+  button{font-family:inherit; cursor:pointer}
+  input,select,textarea{font-family:inherit}
+
+  header{display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; background:#0b0d12cc; backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20;}
+  .marca{display:flex; align-items:center; gap:12px}
+  .logo{width:38px; height:38px; border-radius:10px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--acc),#c94e00); color:#fff; font-size:20px;
+    box-shadow:0 4px 14px rgba(255,122,26,.4); overflow:hidden}
+  .logo img{width:100%; height:100%; object-fit:cover}
+  .marca h1{font-size:18px; letter-spacing:3px; font-weight:800}
+  .marca span{color:var(--acc)}
+  .marca small{display:block; color:var(--txt3); letter-spacing:2px; font-size:10px; font-weight:600}
+  .btn-salir{background:transparent; color:var(--txt2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; font-size:13px}
+  .btn-salir:hover{color:var(--txt); border-color:var(--txt3)}
+
+  nav.tabs{display:flex; gap:6px; padding:14px 20px 0; max-width:900px; margin:0 auto; width:100%}
+  nav.tabs button{background:transparent; color:var(--txt2); border:none; padding:12px 18px;
+    border-radius:12px 12px 0 0; font-size:14px; font-weight:600; position:relative;}
+  nav.tabs button.on{color:var(--acc); background:var(--card)}
+  nav.tabs button.on::after{content:""; position:absolute; left:18px; right:18px; bottom:-1px; height:2px; background:var(--acc)}
+
+  main{max-width:900px; margin:0 auto; padding:20px}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radio); padding:22px; box-shadow:var(--sombra); margin-bottom:16px}
+  .card h2{font-size:16px; margin-bottom:4px; display:flex; align-items:center; gap:8px}
+  .card .sub{color:var(--txt3); font-size:13px; margin-bottom:18px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px}
+  .campo{display:flex; flex-direction:column; gap:6px}
+  .campo label{font-size:12px; color:var(--txt2); font-weight:600}
+  .campo label b{color:var(--acc)}
+  .campo input,.campo select,.campo textarea{background:var(--bg2); border:1px solid var(--line); color:var(--txt);
+    padding:11px 13px; border-radius:10px; font-size:14px; outline:none; width:100%}
+  .campo input:focus,.campo select:focus,.campo textarea:focus{border-color:var(--acc); box-shadow:0 0 0 3px rgba(255,122,26,.15)}
+  .campo .ayuda{font-size:11px; color:var(--txt3)}
+
+  .btn{background:linear-gradient(135deg,var(--acc),#e05e00); color:#fff; border:none;
+    padding:13px 22px; border-radius:11px; font-size:15px; font-weight:700; box-shadow:0 6px 18px rgba(255,122,26,.35)}
+  .btn:hover{transform:translateY(-1px)} .btn:disabled{opacity:.5; cursor:not-allowed; transform:none}
+  .btn.sec{background:var(--card2); color:var(--txt); box-shadow:none; border:1px solid var(--line)}
+  .btn.chico{padding:8px 14px; font-size:13px; border-radius:9px}
+
+  .tabla-wrap{overflow-x:auto; border-radius:12px; border:1px solid var(--line)}
+  table{width:100%; border-collapse:collapse; font-size:14px; min-width:560px}
+  th{text-align:left; padding:12px 14px; color:var(--txt3); font-size:11px; letter-spacing:.5px; text-transform:uppercase; background:var(--bg2); border-bottom:1px solid var(--line)}
+  td{padding:12px 14px; border-bottom:1px solid var(--line)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#ffffff05}
+  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700}
+  .pill.ok{background:rgba(47,208,122,.15); color:var(--ok)}
+  .pill.gris{background:#ffffff10; color:var(--txt2)}
+  .precio{font-weight:800; color:var(--acc2)}
+  .vacio{text-align:center; padding:30px; color:var(--txt3)}
+
+  .login-wrap{min-height:100vh; display:grid; place-items:center; padding:20px}
+  .login{width:100%; max-width:380px; text-align:center}
+  .login .logo{width:64px; height:64px; font-size:32px; margin:0 auto 18px; border-radius:16px}
+  .login h1{letter-spacing:4px; font-weight:800; margin-bottom:6px}
+  .login h1 span{color:var(--acc)}
+  .login p{color:var(--txt3); font-size:13px; margin-bottom:26px}
+  .login .campo{text-align:left; margin-bottom:14px}
+  .login .btn{width:100%; margin-top:6px}
+
+  #aviso{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:14px 22px; border-radius:12px; font-size:14px; font-weight:600; box-shadow:var(--sombra); z-index:90; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; max-width:90%}
+  #aviso.show{opacity:1; transform:translateX(-50%) translateY(-4px)}
+  #aviso.ok{background:var(--ok); color:#04231a} #aviso.err{background:var(--bad); color:#2a0409}
+
+  @media(max-width:560px){ nav.tabs button{padding:11px 12px; font-size:13px} main{padding:14px} .card{padding:16px} }
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN ================= -->
+<div id="pantallaLogin" class="login-wrap">
+  <form class="login card" id="formLogin">
+    <div class="logo">🏋️</div>
+    <h1>TITA<span>NIUM</span></h1>
+    <p>Configuración del gimnasio</p>
+    <div class="campo"><label>Correo</label>
+      <input type="email" id="loginEmail" required autocomplete="username" placeholder="tucorreo@ejemplo.com"></div>
+    <div class="campo"><label>Contraseña</label>
+      <input type="password" id="loginPass" required autocomplete="current-password" placeholder="••••••••"></div>
+    <button class="btn" type="submit" id="btnLogin">Entrar</button>
+    <p id="loginError" style="color:var(--bad); margin-top:14px; min-height:16px"></p>
+  </form>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app" class="oculto">
+  <header>
+    <div class="marca">
+      <div class="logo" id="hdrLogo">🏋️</div>
+      <div>
+        <h1 id="hdrNombre">TITA<span>NIUM</span></h1>
+        <small>CONFIGURACIÓN</small>
+      </div>
+    </div>
+    <button class="btn-salir" id="btnSalir">Cerrar sesión</button>
+  </header>
+
+  <nav class="tabs">
+    <button id="tabDatos" class="on" onclick="mostrarVista('datos')">🏢 Datos del gym</button>
+    <button id="tabPlanes" onclick="mostrarVista('planes')">🎟️ Planes y precios</button>
+  </nav>
+
+  <main>
+    <!-- ---------- DATOS DEL GYM ---------- -->
+    <section id="vistaDatos">
+      <div class="card">
+        <h2>🏢 Datos del gimnasio</h2>
+        <p class="sub">Estos datos identifican al negocio. El nombre y el logo aparecerán en las pantallas.</p>
+        <form id="formDatos">
+          <div class="grid">
+            <div class="campo"><label>Nombre del gimnasio <b>*</b></label>
+              <input type="text" id="c_nombre" required placeholder="Ej. Titanium Gym"></div>
+            <div class="campo"><label>Teléfono</label>
+              <input type="tel" id="c_telefono" placeholder="Ej. 2871234567"></div>
+            <div class="campo"><label>Correo</label>
+              <input type="email" id="c_correo" placeholder="contacto@gym.com"></div>
+            <div class="campo"><label>Horario de atención</label>
+              <input type="text" id="c_horario" placeholder="Ej. Lun a Sáb 6:00 - 22:00"></div>
+            <div class="campo"><label>Símbolo de moneda</label>
+              <input type="text" id="c_moneda" maxlength="3" placeholder="$"></div>
+            <div class="campo"><label>Logo (URL de imagen)</label>
+              <input type="text" id="c_logo" placeholder="https://.../logo.png">
+              <span class="ayuda">Opcional. Pega el enlace de una imagen. Cuando tengas el logo del gym.</span></div>
+          </div>
+          <div class="campo" style="margin-top:14px"><label>Dirección</label>
+            <textarea id="c_direccion" rows="2" placeholder="Calle, número, colonia, ciudad"></textarea></div>
+          <div style="margin-top:18px"><button class="btn" type="submit" id="btnGuardarDatos">Guardar datos</button></div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ---------- PLANES ---------- -->
+    <section id="vistaPlanes" class="oculto">
+      <div class="card">
+        <h2 id="planFormTit">➕ Nuevo plan / paquete</h2>
+        <p class="sub">Da de alta o edita los paquetes que vende el gym. Los precios se usan en el alta de socios.</p>
+        <form id="formPlan">
+          <div class="grid">
+            <div class="campo"><label>Nombre <b>*</b></label>
+              <input type="text" id="p_nombre" required placeholder="Ej. Mensual"></div>
+            <div class="campo"><label>Tipo <b>*</b></label>
+              <select id="p_tipo" required>
+                <option value="mensual">Mensual (por días)</option>
+                <option value="semanal">Semanal (por días)</option>
+                <option value="visitas">Por visitas</option>
+                <option value="horas">Por horas</option>
+              </select></div>
+            <div class="campo"><label>Precio ($) <b>*</b></label>
+              <input type="number" id="p_precio" step="0.01" min="0" required placeholder="0.00"></div>
+            <div class="campo" id="campoDuracion"><label>Vigencia (días)</label>
+              <input type="number" id="p_duracion" min="0" step="1" placeholder="Ej. 30">
+              <span class="ayuda">Días que dura. En visitas/horas es opcional (vigencia del paquete).</span></div>
+            <div class="campo oculto" id="campoVisitas"><label>Visitas incluidas</label>
+              <input type="number" id="p_visitas" min="0" step="1" placeholder="Ej. 10"></div>
+            <div class="campo oculto" id="campoHoras"><label>Horas incluidas</label>
+              <input type="number" id="p_horas" min="0" step="0.5" placeholder="Ej. 1"></div>
+          </div>
+          <div class="campo" style="margin-top:14px"><label>Descripción</label>
+            <input type="text" id="p_desc" placeholder="Ej. Acceso ilimitado durante 30 días"></div>
+          <div style="margin-top:18px; display:flex; gap:12px; flex-wrap:wrap">
+            <button class="btn" type="submit" id="btnGuardarPlan">Guardar plan</button>
+            <button class="btn sec" type="button" id="btnCancelarPlan" onclick="limpiarPlan()">Cancelar edición</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>🎟️ Planes existentes</h2>
+        <p class="sub">Los inactivos no aparecen al vender. Desactiva en vez de borrar para no perder el historial.</p>
+        <div class="tabla-wrap">
+          <table>
+            <thead><tr><th>Plan</th><th>Tipo</th><th>Precio</th><th>Incluye</th><th>Estado</th><th></th></tr></thead>
+            <tbody id="tbodyPlanes"><tr><td colspan="6" class="vacio">Cargando...</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="aviso"></div>
+
+<script>
+/* ===== Config (toma la anon key de titanium-config.js) ===== */
+const SUPABASE_URL  = window.SUPABASE_URL || "https://qwdswodysasskchrgquz.supabase.co";
+const SUPABASE_KEY  = window.SUPABASE_KEY || "PEGA_AQUI_TU_ANON_KEY";
+const { createClient } = window.supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let PLANES = [];
+let planEditId = null;
+
+/* ===== Utilidades ===== */
+function dinero(n){ return "$"+Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function aviso(msg, tipo="ok"){
+  const a=document.getElementById("aviso");
+  a.textContent=msg; a.className=tipo+" show";
+  setTimeout(()=>a.classList.remove("show"), 3200);
+}
+
+/* ===== Autenticación ===== */
+document.getElementById("formLogin").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn=document.getElementById("btnLogin"), err=document.getElementById("loginError");
+  err.textContent=""; btn.disabled=true; btn.textContent="Entrando...";
+  const { error } = await db.auth.signInWithPassword({
+    email:document.getElementById("loginEmail").value.trim(),
+    password:document.getElementById("loginPass").value
+  });
+  btn.disabled=false; btn.textContent="Entrar";
+  if(error){ err.textContent="Correo o contraseña incorrectos."; }
+});
+document.getElementById("btnSalir").addEventListener("click", async ()=>{ await db.auth.signOut(); location.reload(); });
+
+async function revisarSesion(){
+  const { data:{ session } } = await db.auth.getSession();
+  if(session){ entrarApp(); } else { document.getElementById("pantallaLogin").classList.remove("oculto"); }
+}
+db.auth.onAuthStateChange((_e, session)=>{ if(session) entrarApp(); });
+
+let iniciado=false;
+async function entrarApp(){
+  document.getElementById("pantallaLogin").classList.add("oculto");
+  document.getElementById("app").classList.remove("oculto");
+  if(iniciado) return; iniciado=true;
+  await cargarConfig();
+  await cargarPlanes();
+}
+
+/* ===== Navegación ===== */
+function mostrarVista(v){
+  document.getElementById("vistaDatos").classList.toggle("oculto", v!=="datos");
+  document.getElementById("vistaPlanes").classList.toggle("oculto", v!=="planes");
+  document.getElementById("tabDatos").classList.toggle("on", v==="datos");
+  document.getElementById("tabPlanes").classList.toggle("on", v==="planes");
+}
+
+/* ===== Datos del gym ===== */
+async function cargarConfig(){
+  const { data, error } = await db.from("configuracion").select("*").eq("id",1).maybeSingle();
+  if(error){ aviso("No se pudo cargar la configuración: "+error.message,"err"); return; }
+  const c = data||{};
+  document.getElementById("c_nombre").value   = c.nombre_gym||"";
+  document.getElementById("c_telefono").value = c.telefono||"";
+  document.getElementById("c_correo").value   = c.correo||"";
+  document.getElementById("c_horario").value  = c.horario||"";
+  document.getElementById("c_moneda").value   = c.moneda||"$";
+  document.getElementById("c_logo").value     = c.logo_url||"";
+  document.getElementById("c_direccion").value= c.direccion||"";
+  pintarMarca(c.nombre_gym, c.logo_url);
+}
+
+function pintarMarca(nombre, logo){
+  const h=document.getElementById("hdrNombre");
+  h.textContent = nombre || "Titanium";
+  const l=document.getElementById("hdrLogo");
+  if(logo){ l.innerHTML = `<img src="${logo}" alt="logo" onerror="this.parentNode.textContent='🏋️'">`; }
+  else { l.textContent = "🏋️"; }
+}
+
+document.getElementById("formDatos").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn=document.getElementById("btnGuardarDatos");
+  btn.disabled=true; btn.textContent="Guardando...";
+  try{
+    const registro = {
+      nombre_gym: document.getElementById("c_nombre").value.trim() || "Titanium",
+      telefono:   document.getElementById("c_telefono").value.trim() || null,
+      correo:     document.getElementById("c_correo").value.trim() || null,
+      horario:    document.getElementById("c_horario").value.trim() || null,
+      moneda:     document.getElementById("c_moneda").value.trim() || "$",
+      logo_url:   document.getElementById("c_logo").value.trim() || null,
+      direccion:  document.getElementById("c_direccion").value.trim() || null
+    };
+    const { error } = await db.from("configuracion").update(registro).eq("id",1);
+    if(error) throw error;
+    pintarMarca(registro.nombre_gym, registro.logo_url);
+    aviso("Datos guardados ✔");
+  }catch(err){ aviso("Error: "+(err.message||"no se pudo guardar"),"err"); }
+  finally{ btn.disabled=false; btn.textContent="Guardar datos"; }
+});
+
+/* ===== Planes ===== */
+const selTipo = document.getElementById("p_tipo");
+selTipo.addEventListener("change", ajustarCamposTipo);
+function ajustarCamposTipo(){
+  const t = selTipo.value;
+  document.getElementById("campoVisitas").classList.toggle("oculto", t!=="visitas");
+  document.getElementById("campoHoras").classList.toggle("oculto", t!=="horas");
+  // la vigencia (días) siempre se muestra: obligatoria en mensual/semanal, opcional en visitas/horas
+}
+
+async function cargarPlanes(){
+  const tb=document.getElementById("tbodyPlanes");
+  tb.innerHTML='<tr><td colspan="6" class="vacio">Cargando...</td></tr>';
+  const { data, error } = await db.from("planes").select("*").order("activo",{ascending:false}).order("precio");
+  if(error){ tb.innerHTML=`<tr><td colspan="6" class="vacio">Error: ${error.message}</td></tr>`; return; }
+  PLANES = data||[];
+  pintarPlanes();
+}
+
+function incluyeTxt(p){
+  const b=[];
+  if(p.duracion_dias) b.push(p.duracion_dias+" días");
+  if(p.visitas_incluidas) b.push(p.visitas_incluidas+" visitas");
+  if(p.horas_incluidas) b.push(p.horas_incluidas+" horas");
+  return b.join(" · ") || "—";
+}
+const TIPO_TXT = {mensual:"Mensual", semanal:"Semanal", visitas:"Por visitas", horas:"Por horas"};
+
+function pintarPlanes(){
+  const tb=document.getElementById("tbodyPlanes");
+  if(!PLANES.length){ tb.innerHTML='<tr><td colspan="6" class="vacio">Aún no hay planes. Crea el primero arriba.</td></tr>'; return; }
+  tb.innerHTML = PLANES.map(p=>`
+    <tr style="${p.activo?'':'opacity:.5'}">
+      <td><b>${p.nombre}</b>${p.descripcion?`<br><span style="color:var(--txt3);font-size:12px">${p.descripcion}</span>`:""}</td>
+      <td>${TIPO_TXT[p.tipo]||p.tipo}</td>
+      <td class="precio">${dinero(p.precio)}</td>
+      <td style="color:var(--txt2);font-size:13px">${incluyeTxt(p)}</td>
+      <td>${p.activo?'<span class="pill ok">Activo</span>':'<span class="pill gris">Inactivo</span>'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn sec chico" onclick="editarPlan('${p.id}')">Editar</button>
+        <button class="btn sec chico" onclick="togglePlan('${p.id}')">${p.activo?"Desactivar":"Activar"}</button>
+      </td>
+    </tr>`).join("");
+}
+
+function editarPlan(id){
+  const p = PLANES.find(x=>x.id===id); if(!p) return;
+  planEditId = id;
+  document.getElementById("planFormTit").textContent = "✏️ Editar plan";
+  document.getElementById("p_nombre").value = p.nombre||"";
+  selTipo.value = p.tipo||"mensual";
+  document.getElementById("p_precio").value = p.precio!=null?p.precio:"";
+  document.getElementById("p_duracion").value = p.duracion_dias!=null?p.duracion_dias:"";
+  document.getElementById("p_visitas").value = p.visitas_incluidas!=null?p.visitas_incluidas:"";
+  document.getElementById("p_horas").value = p.horas_incluidas!=null?p.horas_incluidas:"";
+  document.getElementById("p_desc").value = p.descripcion||"";
+  ajustarCamposTipo();
+  window.scrollTo(0,0);
+}
+function limpiarPlan(){
+  planEditId=null;
+  document.getElementById("planFormTit").textContent = "➕ Nuevo plan / paquete";
+  document.getElementById("formPlan").reset();
+  ajustarCamposTipo();
+}
+
+document.getElementById("formPlan").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const tipo = selTipo.value;
+  const btn=document.getElementById("btnGuardarPlan");
+  // Validaciones según el tipo
+  const dur = document.getElementById("p_duracion").value;
+  const vis = document.getElementById("p_visitas").value;
+  const hrs = document.getElementById("p_horas").value;
+  if((tipo==="mensual"||tipo==="semanal") && !dur){ aviso("Indica la vigencia en días.","err"); return; }
+  if(tipo==="visitas" && !vis){ aviso("Indica cuántas visitas incluye.","err"); return; }
+  if(tipo==="horas" && !hrs){ aviso("Indica cuántas horas incluye.","err"); return; }
+
+  btn.disabled=true; btn.textContent="Guardando...";
+  try{
+    const registro = {
+      nombre: document.getElementById("p_nombre").value.trim(),
+      tipo: tipo,
+      precio: Number(document.getElementById("p_precio").value||0),
+      duracion_dias: dur!=="" ? parseInt(dur,10) : null,
+      visitas_incluidas: (tipo==="visitas" && vis!=="") ? parseInt(vis,10) : null,
+      horas_incluidas: (tipo==="horas" && hrs!=="") ? Number(hrs) : null,
+      descripcion: document.getElementById("p_desc").value.trim() || null
+    };
+    if(planEditId){
+      const { error } = await db.from("planes").update(registro).eq("id", planEditId);
+      if(error) throw error;
+      aviso("Plan actualizado ✔");
+    }else{
+      const { error } = await db.from("planes").insert(registro);
+      if(error) throw error;
+      aviso("Plan creado ✔");
+    }
+    limpiarPlan();
+    cargarPlanes();
+  }catch(err){ aviso("Error: "+(err.message||"no se pudo guardar"),"err"); }
+  finally{ btn.disabled=false; btn.textContent="Guardar plan"; }
+});
+
+async function togglePlan(id){
+  const p = PLANES.find(x=>x.id===id); if(!p) return;
+  const { error } = await db.from("planes").update({activo: !p.activo}).eq("id", id);
+  if(error){ aviso("Error: "+error.message,"err"); return; }
+  aviso(p.activo?"Plan desactivado":"Plan activado");
+  cargarPlanes();
+}
+
+/* ===== Arranque ===== */
+if(SUPABASE_KEY==="PEGA_AQUI_TU_ANON_KEY"){
+  document.getElementById("loginError").textContent = "⚠ Falta pegar tu anon key en titanium-config.js.";
+}
+ajustarCamposTipo();
+revisarSesion();
+</script>
+</body>
+</html>
