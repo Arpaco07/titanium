@@ -2,239 +2,213 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Titanium · Mi membresía</title>
-
-<!-- ===== PWA: para "Agregar a pantalla de inicio" y verse como app ===== -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Titanium · Mi cuenta</title>
 <meta name="theme-color" content="#0d0f14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Titanium">
-<!-- Manifest embebido como data URI (no requiere archivo aparte) -->
-<link rel="manifest" href='data:application/manifest+json,{"name":"Titanium · Mi membresía","short_name":"Titanium","start_url":".","display":"standalone","background_color":"%230d0f14","theme_color":"%230d0f14","icons":[]}'>
 
-<!-- Librerías: Supabase (base de datos) y QRCode (para el código del socio) -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
 <style>
-  /* ====================================================================
-     TITANIUM · Tema oscuro tipo gym (metálico + acento ámbar)
-     ==================================================================== */
   :root{
     --bg:#0d0f14; --bg2:#141821; --card:#1a1f2b; --card2:#20263485;
     --line:#2a3141; --txt:#e8ecf3; --txt2:#9aa4b6; --txt3:#6b7488;
     --acc:#ff7a1a; --acc2:#ffa04d; --ok:#2fd07a; --warn:#f7b731; --bad:#ff5964;
-    --radio:14px; --sombra:0 8px 30px rgba(0,0,0,.35);
+    --radio:16px; --sombra:0 8px 30px rgba(0,0,0,.35);
   }
-  *{box-sizing:border-box; margin:0; padding:0}
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent}
   body{
     font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-    background:radial-gradient(1200px 600px at 80% -10%, #1b2130 0%, var(--bg) 55%);
+    background:radial-gradient(900px 500px at 50% -10%, #1b2130 0%, var(--bg) 55%);
     color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased;
   }
   .oculto{display:none !important}
   button{font-family:inherit; cursor:pointer}
-  input,select{font-family:inherit}
+  input{font-family:inherit}
 
-  /* ---- Encabezado ---- */
-  header{
-    display:flex; align-items:center; justify-content:space-between;
-    padding:14px 20px; background:#0b0d12cc; backdrop-filter:blur(8px);
-    border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20;
-  }
-  .marca{display:flex; align-items:center; gap:12px}
-  .logo{
-    width:38px; height:38px; border-radius:10px; display:grid; place-items:center;
-    background:linear-gradient(135deg,var(--acc),#c94e00); color:#fff; font-size:20px;
-    box-shadow:0 4px 14px rgba(255,122,26,.4);
-  }
-  .marca h1{font-size:18px; letter-spacing:3px; font-weight:800}
-  .marca span{color:var(--acc)}
-  .marca small{display:block; color:var(--txt3); letter-spacing:2px; font-size:10px; font-weight:600}
-  .btn-salir{background:transparent; color:var(--txt2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; font-size:13px}
-  .btn-salir:hover{color:var(--txt); border-color:var(--txt3)}
-
-  main{max-width:1100px; margin:0 auto; padding:20px}
-
-  /* ---- Tarjetas / formularios ---- */
-  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radio); padding:22px; box-shadow:var(--sombra)}
-  .card h2{font-size:16px; margin-bottom:4px; display:flex; align-items:center; gap:8px}
-  .card .sub{color:var(--txt3); font-size:13px; margin-bottom:18px}
-  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px}
-  .campo{display:flex; flex-direction:column; gap:6px}
-  .campo label{font-size:12px; color:var(--txt2); font-weight:600; letter-spacing:.3px}
-  .campo label b{color:var(--acc)}
-  .campo input,.campo select{
-    background:var(--bg2); border:1px solid var(--line); color:var(--txt);
-    padding:11px 13px; border-radius:10px; font-size:14px; outline:none; width:100%;
-  }
-  .campo input:focus,.campo select:focus{border-color:var(--acc); box-shadow:0 0 0 3px rgba(255,122,26,.15)}
-  .campo .ayuda{font-size:11px; color:var(--txt3)}
-
-  .divisor{height:1px; background:var(--line); margin:22px 0}
-
+  /* ---- Botones ---- */
   .btn{
     background:linear-gradient(135deg,var(--acc),#e05e00); color:#fff; border:none;
-    padding:13px 22px; border-radius:11px; font-size:15px; font-weight:700; letter-spacing:.3px;
-    box-shadow:0 6px 18px rgba(255,122,26,.35); transition:transform .05s;
+    padding:14px 20px; border-radius:12px; font-size:16px; font-weight:700;
+    box-shadow:0 6px 18px rgba(255,122,26,.35);
   }
-  .btn:hover{transform:translateY(-1px)} .btn:active{transform:translateY(0)}
-  .btn:disabled{opacity:.5; cursor:not-allowed; transform:none}
+  .btn:disabled{opacity:.55}
   .btn.sec{background:var(--card2); color:var(--txt); box-shadow:none; border:1px solid var(--line)}
-  .btn.chico{padding:8px 14px; font-size:13px; border-radius:9px}
 
-  .resumen{background:var(--card2); border:1px dashed var(--line); border-radius:12px; padding:14px 16px; margin-top:4px}
-  .resumen .fila{display:flex; justify-content:space-between; font-size:14px; padding:4px 0}
-  .resumen .fila b{color:var(--acc2); font-size:18px}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radio); padding:18px; box-shadow:var(--sombra); margin-bottom:14px}
 
-  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700}
-  .pill.ok{background:rgba(47,208,122,.15); color:var(--ok)}
-  .pill.warn{background:rgba(247,183,49,.15); color:var(--warn)}
-  .pill.bad{background:rgba(255,89,100,.15); color:var(--bad)}
-  .pill.gris{background:#ffffff10; color:var(--txt2)}
-  .cod{font-family:ui-monospace,monospace; color:var(--acc2)}
-
-  /* ---- Login del socio ---- */
-  .login-wrap{min-height:100vh; display:grid; place-items:center; padding:20px}
+  /* ==================== LOGIN ==================== */
+  .login-wrap{min-height:100vh; display:grid; place-items:center; padding:22px}
   .login{width:100%; max-width:380px; text-align:center}
-  .login .logo{width:64px; height:64px; font-size:32px; margin:0 auto 18px; border-radius:16px}
-  .login h1{letter-spacing:4px; font-weight:800; margin-bottom:6px}
+  .login .logo{width:70px; height:70px; font-size:34px; margin:0 auto 16px; border-radius:18px; display:grid; place-items:center; background:linear-gradient(135deg,var(--acc),#c94e00); box-shadow:0 6px 18px rgba(255,122,26,.45)}
+  .login h1{letter-spacing:4px; font-weight:800; margin-bottom:4px}
   .login h1 span{color:var(--acc)}
-  .login p{color:var(--txt3); font-size:13px; margin-bottom:26px}
-  .login .campo{text-align:left; margin-bottom:14px}
+  .login .lema{color:var(--txt3); font-size:13px; margin-bottom:26px}
+  .campo{display:flex; flex-direction:column; gap:6px; text-align:left; margin-bottom:14px}
+  .campo label{font-size:12px; color:var(--txt2); font-weight:600}
+  .campo input{background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:13px; border-radius:11px; font-size:16px; outline:none; width:100%}
+  .campo input:focus{border-color:var(--acc)}
   .login .btn{width:100%; margin-top:6px}
+  .login .err{color:var(--bad); font-size:13px; margin-top:14px; min-height:18px}
+  .login .ayuda{color:var(--txt3); font-size:11px; margin-top:18px; line-height:1.5}
 
-  /* ---- Aviso (toast) ---- */
-  #aviso{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:14px 22px; border-radius:12px; font-size:14px; font-weight:600; box-shadow:var(--sombra); z-index:90; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; max-width:90%}
-  #aviso.show{opacity:1; transform:translateX(-50%) translateY(-4px)}
+  /* ==================== APP ==================== */
+  #app{max-width:520px; margin:0 auto; min-height:100vh; padding:16px 16px 90px}
+  .topbar{display:flex; align-items:center; gap:12px; padding:6px 2px 16px}
+  .topbar .logo{width:40px; height:40px; border-radius:11px; display:grid; place-items:center; background:linear-gradient(135deg,var(--acc),#c94e00); font-size:22px; box-shadow:0 4px 14px rgba(255,122,26,.4)}
+  .topbar .saludo{font-size:18px; font-weight:800; line-height:1.15}
+  .topbar .sub{font-size:12px; color:var(--txt3)}
+
+  /* Tarjeta de estado del paquete */
+  .estado{border-radius:18px; padding:22px; text-align:center; border:1px solid var(--line); position:relative; overflow:hidden}
+  .estado.activo{background:linear-gradient(160deg, rgba(47,208,122,.12), var(--card))}
+  .estado.vencido{background:linear-gradient(160deg, rgba(255,89,100,.12), var(--card))}
+  .estado.sin{background:var(--card)}
+  .badge{display:inline-block; padding:5px 14px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.5px; text-transform:uppercase}
+  .badge.activo{background:rgba(47,208,122,.18); color:var(--ok)}
+  .badge.vencido{background:rgba(255,89,100,.18); color:var(--bad)}
+  .badge.sin{background:#ffffff12; color:var(--txt2)}
+  .estado .plan{font-size:20px; font-weight:800; margin-top:12px}
+  .estado .bignum{font-size:66px; font-weight:800; line-height:1; margin-top:10px}
+  .estado .bignum.activo{color:var(--ok)} .estado .bignum.vencido{color:var(--bad)}
+  .estado .biglbl{color:var(--txt2); font-size:14px; letter-spacing:.5px; margin-top:2px}
+  .estado .vence{color:var(--txt3); font-size:13px; margin-top:10px}
+  .estado .msg{color:var(--txt2); font-size:14px; margin-top:12px; line-height:1.4}
+  /* Barra de vida del paquete */
+  .barra{height:12px; background:var(--bg2); border:1px solid var(--line); border-radius:999px; margin-top:18px; overflow:hidden}
+  .barra > span{display:block; height:100%; border-radius:999px; transition:width .5s}
+  .barra-lbl{display:flex; justify-content:space-between; font-size:11px; color:var(--txt3); margin-top:6px}
+
+  /* Botón marcar acceso */
+  .check .btn{width:100%; font-size:17px; padding:16px}
+  .checkmsg{text-align:center; margin-top:10px; font-size:16px; min-height:22px; font-weight:700}
+  .check .nota{color:var(--txt3); font-size:11px; text-align:center; margin-top:4px}
+
+  /* QR */
+  .qr-card{text-align:center}
+  .qr-card h3{font-size:14px; color:var(--txt2); font-weight:600; margin-bottom:6px}
+  #qr_cont{background:#fff; padding:14px; border-radius:14px; display:inline-block; line-height:0; margin:8px auto}
+  .cod-grande{font-family:ui-monospace,monospace; font-size:22px; color:var(--acc2); font-weight:700; letter-spacing:2px}
+
+  /* Listas (accesos / pagos) */
+  .lista .fila{display:flex; align-items:center; justify-content:space-between; padding:12px 4px; border-bottom:1px solid var(--line)}
+  .lista .fila:last-child{border-bottom:none}
+  .lista .izq{display:flex; align-items:center; gap:12px}
+  .lista .ico{width:38px; height:38px; border-radius:10px; display:grid; place-items:center; font-size:18px; background:var(--bg2); border:1px solid var(--line)}
+  .lista .t1{font-size:15px; font-weight:600}
+  .lista .t2{font-size:12px; color:var(--txt3)}
+  .lista .der{text-align:right}
+  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:11px; font-weight:700}
+  .pill.ent{background:rgba(47,208,122,.15); color:var(--ok)}
+  .pill.sal{background:rgba(247,183,49,.15); color:var(--warn)}
+  .pill.bad{background:rgba(255,89,100,.15); color:var(--bad)}
+  .monto{font-size:16px; font-weight:800; color:var(--acc2)}
+  .vacio{text-align:center; color:var(--txt3); padding:30px; font-size:14px}
+  .seccion-tit{font-size:13px; color:var(--txt3); letter-spacing:1px; text-transform:uppercase; margin:4px 2px 10px; font-weight:700}
+
+  /* Datos de cuenta */
+  .datos .fila{display:flex; justify-content:space-between; padding:11px 2px; border-bottom:1px solid var(--line); font-size:14px}
+  .datos .fila:last-child{border-bottom:none}
+  .datos .k{color:var(--txt3)} .datos .v{color:var(--txt); font-weight:600; text-align:right}
+
+  /* Navegación inferior tipo app */
+  .nav{position:fixed; left:0; right:0; bottom:0; background:#0b0d12ee; backdrop-filter:blur(10px); border-top:1px solid var(--line); display:flex; z-index:30}
+  .nav button{flex:1; background:none; border:none; color:var(--txt3); padding:10px 0 12px; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:11px; font-weight:600}
+  .nav button .ni{font-size:22px}
+  .nav button.on{color:var(--acc)}
+
+  /* Aviso */
+  #aviso{position:fixed; bottom:80px; left:50%; transform:translateX(-50%); padding:12px 20px; border-radius:12px; font-size:14px; font-weight:600; box-shadow:var(--sombra); z-index:90; opacity:0; transition:opacity .25s; pointer-events:none; max-width:90%}
+  #aviso.show{opacity:1}
   #aviso.ok{background:var(--ok); color:#04231a} #aviso.err{background:var(--bad); color:#2a0409}
-
-  /* ====================================================================
-     CLASES NUEVAS · exclusivas del PORTAL DEL SOCIO
-     ==================================================================== */
-  /* Portal en una sola columna centrada, cómodo para el pulgar */
-  .portal{max-width:460px; margin:0 auto}
-
-  /* Tarjeta grande de estado (activo / vencido / sin paquete) */
-  .estado-card{
-    text-align:center; padding:26px 22px; border-radius:18px;
-    border:1px solid var(--line); background:var(--card); box-shadow:var(--sombra);
-  }
-  .estado-card.activo{background:linear-gradient(160deg,rgba(47,208,122,.14),var(--card)); border-color:rgba(47,208,122,.4)}
-  .estado-card.vencido{background:linear-gradient(160deg,rgba(255,89,100,.14),var(--card)); border-color:rgba(255,89,100,.4)}
-  .estado-card.sin{background:linear-gradient(160deg,#ffffff08,var(--card))}
-  .estado-badge{display:inline-block; padding:6px 18px; border-radius:999px; font-size:14px; font-weight:800; letter-spacing:1px; text-transform:uppercase}
-  .estado-badge.activo{background:rgba(47,208,122,.2); color:var(--ok)}
-  .estado-badge.vencido{background:rgba(255,89,100,.2); color:var(--bad)}
-  .estado-badge.sin{background:#ffffff12; color:var(--txt2)}
-  .estado-plan{color:var(--txt2); font-size:15px; margin-top:14px; font-weight:600}
-
-  /* Número grande (días / visitas / horas restantes) */
-  .big-num{font-size:56px; font-weight:800; line-height:1; margin:14px 0 2px; color:var(--txt)}
-  .big-num.activo{color:var(--ok)} .big-num.vencido{color:var(--bad)}
-  .big-lbl{color:var(--txt3); font-size:13px; letter-spacing:1px; text-transform:uppercase; font-weight:700}
-  .estado-msg{margin-top:16px; font-size:14px; color:var(--txt2)}
-  .estado-msg b{color:var(--acc2)}
-
-  /* Saludo */
-  .saludo{font-size:22px; font-weight:800; margin:4px 0 18px; text-align:center}
-
-  /* Bloque del QR de acceso */
-  .qr-card{margin-top:18px; text-align:center; padding:22px}
-  .qr-card h3{font-size:15px; margin-bottom:16px; color:var(--txt2); font-weight:700}
-  #qr_contenedor{background:#fff; padding:16px; border-radius:16px; display:inline-block; line-height:0; box-shadow:0 4px 18px rgba(0,0,0,.3)}
-  .cod-grande{font-family:ui-monospace,monospace; font-size:26px; color:var(--acc2); font-weight:800; letter-spacing:2px; margin-top:18px}
-
-  /* Botonera del portal: apilada y grande para el dedo */
-  .acciones{display:flex; flex-direction:column; gap:12px; margin-top:20px}
-  .acciones .btn{width:100%; padding:15px}
-
-  @media(max-width:560px){
-    main{padding:14px}
-    .card{padding:16px}
-    .big-num{font-size:48px}
-  }
 </style>
 </head>
 <body>
 
-<!-- ================= PANTALLA A · ACCESO DEL SOCIO ================= -->
-<div id="pantallaAcceso" class="login-wrap">
-  <form class="login card" id="formAcceso">
+<!-- ==================== LOGIN ==================== -->
+<div id="pantallaLogin" class="login-wrap">
+  <form class="login" id="formAcceso">
     <div class="logo">🏋️</div>
     <h1>TITA<span>NIUM</span></h1>
-    <p>Portal del socio</p>
-
+    <div class="lema">Mi cuenta</div>
     <div class="campo">
-      <label>Código de socio</label>
-      <input type="text" id="inCodigo" required autocomplete="username"
-             placeholder="Ej. TIT-00001" autocapitalize="characters">
+      <label>Usuario (tu código de socio)</label>
+      <input type="text" id="inCodigo" required autocomplete="username" placeholder="TIT-00001" autocapitalize="characters">
     </div>
     <div class="campo">
-      <label>PIN</label>
-      <input type="password" id="inPin" required inputmode="numeric"
-             autocomplete="current-password" placeholder="••••">
+      <label>Contraseña (tu PIN)</label>
+      <input type="password" id="inPin" required inputmode="numeric" autocomplete="current-password" placeholder="••••">
     </div>
-
     <button class="btn" type="submit" id="btnEntrar">Entrar</button>
-    <p id="accesoError" style="color:var(--bad); margin-top:14px; min-height:16px; font-size:13px"></p>
+    <p class="err" id="accesoError"></p>
+    <p class="ayuda">Tu código y tu PIN te los da recepción al inscribirte. ¿No los recuerdas? Pídelos en el gym.</p>
   </form>
 </div>
 
-<!-- ================= PANTALLA B · MI MEMBRESÍA ================= -->
-<div id="pantallaMembresia" class="oculto">
-  <header>
-    <div class="marca">
-      <div class="logo">🏋️</div>
-      <div>
-        <h1>TITA<span>NIUM</span></h1>
-        <small>MI MEMBRESÍA</small>
-      </div>
-    </div>
-    <button class="btn-salir" id="btnSalir">Salir</button>
-  </header>
-
-  <main>
-    <div class="portal">
-      <!-- Saludo -->
+<!-- ==================== APP ==================== -->
+<div id="app" class="oculto">
+  <div class="topbar">
+    <div class="logo">🏋️</div>
+    <div>
       <div class="saludo" id="saludo">Hola 👋</div>
-
-      <!-- Tarjeta de estado (se pinta por JS) -->
-      <div id="estadoCard"></div>
-
-      <!-- Marcar entrada/salida desde el celular -->
-      <div class="card" id="checkCard" style="text-align:center; padding:16px; margin-bottom:14px">
-        <button class="btn" id="btnCheck" style="width:100%; font-size:16px">📍 Registrar mi entrada / salida</button>
-        <div id="checkMsg" style="margin-top:10px; font-size:15px; min-height:20px"></div>
-        <div style="color:var(--txt3); font-size:11px; margin-top:4px">El sistema detecta solo si es tu entrada o tu salida.</div>
-      </div>
-
-      <!-- Tarjeta del QR de acceso -->
-      <div class="card qr-card">
-        <h3>O muestra este código en la entrada</h3>
-        <div id="qr_contenedor"></div>
-        <div class="cod-grande" id="cod_grande"></div>
-      </div>
-
-      <!-- Acciones -->
-      <div class="acciones">
-        <button class="btn sec" id="btnActualizar">↻ Actualizar</button>
-        <button class="btn sec" id="btnSalir2">Cerrar sesión</button>
-      </div>
+      <div class="sub" id="subCodigo"></div>
     </div>
-  </main>
+  </div>
+
+  <!-- ---------- TAB INICIO ---------- -->
+  <section id="tabInicio">
+    <div id="estadoCard"></div>
+
+    <div class="card check">
+      <button class="btn" id="btnCheck">📍 Registrar mi entrada / salida</button>
+      <div class="checkmsg" id="checkMsg"></div>
+      <div class="nota">El sistema detecta solo si es tu entrada o tu salida.</div>
+    </div>
+
+    <div class="card qr-card">
+      <h3>O muestra este código en la entrada</h3>
+      <div id="qr_cont"></div>
+      <div class="cod-grande" id="codGrande"></div>
+    </div>
+  </section>
+
+  <!-- ---------- TAB ACCESOS ---------- -->
+  <section id="tabAccesos" class="oculto">
+    <div class="seccion-tit">Mis últimos accesos</div>
+    <div class="card lista" id="listaAccesos">
+      <div class="vacio">Cargando...</div>
+    </div>
+  </section>
+
+  <!-- ---------- TAB CUENTA ---------- -->
+  <section id="tabCuenta" class="oculto">
+    <div class="seccion-tit">Mis datos</div>
+    <div class="card datos" id="misDatos"></div>
+
+    <div class="seccion-tit">Mis pagos</div>
+    <div class="card lista" id="listaPagos">
+      <div class="vacio">Cargando...</div>
+    </div>
+
+    <button class="btn sec" id="btnSalir" style="width:100%; margin-top:6px">Cerrar sesión</button>
+  </section>
+
+  <!-- ---------- NAV INFERIOR ---------- -->
+  <nav class="nav">
+    <button id="navInicio" class="on" data-tab="Inicio"><span class="ni">🏠</span>Inicio</button>
+    <button id="navAccesos" data-tab="Accesos"><span class="ni">🕘</span>Accesos</button>
+    <button id="navCuenta" data-tab="Cuenta"><span class="ni">👤</span>Cuenta</button>
+  </nav>
 </div>
 
 <div id="aviso"></div>
 
 <script>
 /* =====================================================================
-   CONFIGURACIÓN — Conexión a tu Supabase
-   ---------------------------------------------------------------------
-   La URL ya está puesta. Solo falta pegar tu "anon public key":
-   Supabase → Project Settings (engrane) → API → "Project API keys"
-   → copia la que dice  anon  public  y pégala entre las comillas.
+   CONFIGURACIÓN — pega tu anon key igual que en las demás pantallas.
    ===================================================================== */
 const SUPABASE_URL  = "https://qwdswodysasskchrgquz.supabase.co";
 const SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3ZHN3b2R5c2Fzc2tjaHJncXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MjQ3OTgsImV4cCI6MjEwNjMwMDc5OH0.1XFVf34Vr8PDIUkf78bOvhIqk4mTPKlO74farozVdjs";   // 👈 SOLO cambia esto
@@ -242,231 +216,276 @@ const SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 const { createClient } = window.supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* Clave para recordar la sesión del socio en el celular */
 const LS_KEY = "titanium_socio";
-let SESION = null;   // {codigo, pin} del socio con sesión activa (para marcar acceso)
+let SESION = null;    // {codigo, pin}
+let DATOS  = null;    // último consultar_socio
 
 /* ---------- Utilidades ---------- */
 function dinero(n){ return "$"+Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function aviso(msg, tipo="ok"){
   const a=document.getElementById("aviso");
   a.textContent=msg; a.className=tipo+" show";
-  setTimeout(()=>a.classList.remove("show"), 3200);
+  setTimeout(()=>a.classList.remove("show"), 3000);
 }
-/* Fecha "aaaa-mm-dd" → "dd/mm/aaaa" (sin romper si viene vacía o rara) */
 function fechaMX(iso){
   if(!iso) return "";
-  const p = String(iso).slice(0,10).split("-");
-  if(p.length!==3) return String(iso);
-  return p[2]+"/"+p[1]+"/"+p[0];
+  const p=String(iso).slice(0,10).split("-");
+  return (p.length===3) ? p[2]+"/"+p[1]+"/"+p[0] : String(iso);
+}
+function fechaHora(iso){
+  try{
+    const d=new Date(iso);
+    const f=d.toLocaleDateString("es-MX",{day:"2-digit",month:"short"});
+    const h=d.toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
+    return {f, h};
+  }catch(e){ return {f:"", h:""}; }
 }
 
 /* =====================================================================
-   PANTALLA A · ACCESO DEL SOCIO (código + PIN, sin Supabase Auth)
+   LOGIN
    ===================================================================== */
 document.getElementById("formAcceso").addEventListener("submit", async (e)=>{
   e.preventDefault();
-  const cod = document.getElementById("inCodigo").value.trim().toUpperCase();
-  const pin = document.getElementById("inPin").value.trim();
-  if(!cod || !pin){ return; }
-  await entrar(cod, pin, /*auto=*/false);
+  const cod=document.getElementById("inCodigo").value.trim().toUpperCase();
+  const pin=document.getElementById("inPin").value.trim();
+  if(!cod||!pin) return;
+  await entrar(cod, pin, false);
 });
 
-/* Llama a la función consultar_socio (funciona sin sesión de Supabase) */
 async function entrar(cod, pin, auto){
-  const btn = document.getElementById("btnEntrar");
-  const err = document.getElementById("accesoError");
-  err.textContent = "";
+  const btn=document.getElementById("btnEntrar");
+  const err=document.getElementById("accesoError");
+  err.textContent="";
   if(!auto){ btn.disabled=true; btn.textContent="Entrando..."; }
-
   try{
     const { data, error } = await db.rpc("consultar_socio", { p_codigo:cod, p_pin:pin });
-
     if(error){
-      // Error de red / servidor: no borres nada, solo avisa
-      if(!auto){
-        err.textContent = "No se pudo conectar. Revisa tu internet e intenta de nuevo.";
-        aviso("Error de conexión","err");
-      }
+      if(!auto){ err.textContent="No se pudo conectar. Revisa tu internet."; aviso("Error de conexión","err"); }
       return;
     }
-    if(!data || data.ok !== true){
-      const msg = (data && data.error) ? data.error : "No se pudo iniciar sesión.";
-      if(auto){
-        // Falló el auto-login (ej. PIN cambiado): limpia y muestra el acceso
-        salir(/*silencioso=*/true);
-      }else{
-        err.textContent = msg;
-        aviso(msg, "err");
-      }
+    if(!data || data.ok!==true){
+      const msg=(data&&data.error)?data.error:"No se pudo iniciar sesión.";
+      if(auto){ salir(true); } else { err.textContent=msg; aviso(msg,"err"); }
       return;
     }
-
-    // OK: guarda la sesión del socio en el celular (blindado)
-    SESION = { codigo:cod, pin:pin };
-    try{ localStorage.setItem(LS_KEY, JSON.stringify({ codigo:cod, pin:pin })); }catch(e){}
-
-    mostrarMembresia(data);
+    SESION={ codigo:cod, pin:pin }; DATOS=data;
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(SESION)); }catch(e){}
+    abrirApp(data);
+    cargarHistorial();   // en segundo plano llena Accesos y Pagos
   }catch(e){
-    if(!auto){
-      err.textContent = "Ocurrió un error. Intenta de nuevo.";
-      aviso("Error inesperado","err");
-    }else{
-      salir(true);
-    }
+    if(!auto){ err.textContent="Ocurrió un error. Intenta de nuevo."; aviso("Error inesperado","err"); }
+    else{ salir(true); }
   }finally{
     btn.disabled=false; btn.textContent="Entrar";
   }
 }
 
 /* =====================================================================
-   PANTALLA B · MI MEMBRESÍA
+   APP — render
    ===================================================================== */
-function mostrarMembresia(d){
-  // Cambia de pantalla
-  document.getElementById("pantallaAcceso").classList.add("oculto");
-  document.getElementById("pantallaMembresia").classList.remove("oculto");
+function abrirApp(d){
+  document.getElementById("pantallaLogin").classList.add("oculto");
+  document.getElementById("app").classList.remove("oculto");
+  document.getElementById("saludo").textContent="Hola, "+(d.nombre||"socio")+" 👋";
+  document.getElementById("subCodigo").textContent=d.codigo||"";
+  pintarEstado(d);
+  pintarQR(d.codigo);
+  document.getElementById("codGrande").textContent=d.codigo||"";
+  pintarDatos(d);
+  mostrarTab("Inicio");
+}
 
-  // Saludo por nombre
-  document.getElementById("saludo").textContent = "Hola, " + (d.nombre || "socio") + " 👋";
-
-  // ----- Decide el estado -----
+/* Tarjeta de estado + barra de vida del paquete */
+function pintarEstado(d){
   const dias    = (d.dias_restantes    != null) ? Number(d.dias_restantes)    : null;
   const visitas = (d.visitas_restantes != null) ? Number(d.visitas_restantes) : null;
   const horas   = (d.horas_restantes   != null) ? Number(d.horas_restantes)   : null;
 
-  let clase, badgeTxt, badgeClase, cuerpo="", msg="";
+  let clase, badge, badgeC, cuerpo="", msg="", barra="";
 
   if(!d.tiene_membresia){
-    // Sin paquete
-    clase="sin"; badgeClase="sin"; badgeTxt="Sin paquete activo";
-    msg = "No tienes un paquete activo. <b>Adquiere uno en recepción</b> para empezar a entrenar.";
+    clase="sin"; badgeC="sin"; badge="Sin paquete";
+    msg="No tienes un paquete activo. <b>Adquiere uno en recepción</b> para entrenar.";
   }else{
-    // Tiene membresía: ¿sigue vigente?
-    const vigentePorDias    = (dias    != null && dias    >= 0);
-    const vigentePorVisitas = (visitas != null && visitas >  0);
-    const vigentePorHoras   = (horas   != null && horas   >  0);
-    // Si no maneja ninguno de los tres contadores, se toma como activo (plan libre)
-    const sinContadores = (dias==null && visitas==null && horas==null);
-    const activo = vigentePorDias || vigentePorVisitas || vigentePorHoras || sinContadores;
+    const vDias=(dias!=null&&dias>=0), vVis=(visitas!=null&&visitas>0), vHrs=(horas!=null&&horas>0);
+    const sinCont=(dias==null&&visitas==null&&horas==null);
+    const activo=vDias||vVis||vHrs||sinCont;
+    clase = activo?"activo":"vencido"; badgeC=clase; badge = activo?"Activo":"Vencido";
+    if(!activo) msg="<b>Renueva tu paquete en recepción</b> para seguir entrenando.";
+    const numC = activo?"activo":"vencido";
 
-    if(activo){
-      clase="activo"; badgeClase="activo"; badgeTxt="Activo";
-    }else{
-      clase="vencido"; badgeClase="vencido"; badgeTxt="Vencido";
-      msg = "<b>Renueva tu paquete en recepción</b> para seguir entrenando.";
-    }
-
-    // ----- Número grande según el tipo de plan -----
-    // Prioridad: días (si hay fecha_fin) → visitas → horas
-    const numClase = activo ? "activo" : "vencido";
-    if(d.fecha_fin || dias != null){
-      const n = (dias != null) ? dias : "";
-      cuerpo += `<div class="big-num ${numClase}">${n}</div><div class="big-lbl">Días restantes</div>`;
-      if(d.fecha_fin){
-        cuerpo += `<div class="estado-msg">Vence el <b>${fechaMX(d.fecha_fin)}</b></div>`;
-      }
-    }else if(visitas != null){
-      cuerpo += `<div class="big-num ${numClase}">${visitas}</div><div class="big-lbl">Visitas restantes</div>`;
-    }else if(horas != null){
-      cuerpo += `<div class="big-num ${numClase}">${horas}</div><div class="big-lbl">Horas restantes</div>`;
+    // Número grande + barra según el tipo de plan
+    if(d.fecha_fin || dias!=null){
+      cuerpo=`<div class="bignum ${numC}">${dias!=null?dias:""}</div><div class="biglbl">días restantes</div>`;
+      if(d.fecha_fin) cuerpo+=`<div class="vence">Vence el <b>${fechaMX(d.fecha_fin)}</b></div>`;
+      barra=barraVida(dias, d.duracion_dias, activo);
+    }else if(visitas!=null){
+      cuerpo=`<div class="bignum ${numC}">${visitas}</div><div class="biglbl">visitas restantes</div>`;
+      barra=barraVida(visitas, d.visitas_incluidas, activo);
+    }else if(horas!=null){
+      cuerpo=`<div class="bignum ${numC}">${horas}</div><div class="biglbl">horas restantes</div>`;
+      barra=barraVida(horas, d.horas_incluidas, activo);
     }
   }
 
-  // ----- Pinta la tarjeta de estado -----
-  const plan = d.plan ? `<div class="estado-plan">${d.plan}</div>` : "";
   document.getElementById("estadoCard").innerHTML = `
-    <div class="estado-card ${clase}">
-      <span class="estado-badge ${badgeClase}">${badgeTxt}</span>
-      ${plan}
+    <div class="estado ${clase}">
+      <span class="badge ${badgeC}">${badge}</span>
+      ${d.plan?`<div class="plan">${d.plan}</div>`:""}
       ${cuerpo}
-      ${msg ? `<div class="estado-msg">${msg}</div>` : ""}
+      ${barra}
+      ${msg?`<div class="msg">${msg}</div>`:""}
     </div>`;
-
-  // ----- QR grande con su código (blindado: nunca tumba la pantalla) -----
-  pintarQR(d.codigo);
-  document.getElementById("cod_grande").textContent = d.codigo || "";
 }
 
-/* Dibuja el QR dentro de try/catch para que un fallo no rompa el portal */
+/* Barra de progreso: cuánto queda del total */
+function barraVida(restante, total, activo){
+  if(restante==null || !total || total<=0) return "";
+  let pct = Math.max(0, Math.min(100, Math.round(restante/total*100)));
+  const color = !activo ? "var(--bad)" : (pct<=25 ? "var(--warn)" : "var(--ok)");
+  return `
+    <div class="barra"><span style="width:${pct}%; background:${color}"></span></div>
+    <div class="barra-lbl"><span>Te queda ${pct}%</span><span>${restante} de ${total}</span></div>`;
+}
+
+/* QR (blindado) */
 function pintarQR(codigo){
-  const cont = document.getElementById("qr_contenedor");
-  cont.innerHTML = "";
-  if(!codigo){ cont.innerHTML = '<p style="color:#333;font-size:13px">Sin código</p>'; return; }
-  try{
-    new QRCode(cont, { text:codigo, width:220, height:220, correctLevel:QRCode.CorrectLevel.M });
-  }catch(e){
-    cont.style.background = "transparent";
-    cont.innerHTML = '<p style="color:var(--txt2);font-size:13px">(No se pudo dibujar el QR, muestra tu código en texto)</p>';
-  }
+  const c=document.getElementById("qr_cont"); c.innerHTML="";
+  if(!codigo){ c.innerHTML='<p style="color:#333;font-size:13px">Sin código</p>'; return; }
+  try{ new QRCode(c, { text:codigo, width:210, height:210, correctLevel:QRCode.CorrectLevel.M }); }
+  catch(e){ c.style.background="transparent"; c.innerHTML='<p style="color:var(--txt2);font-size:13px">Muestra tu código en texto</p>'; }
 }
 
-/* ---------- Botón Actualizar: vuelve a consultar con la sesión guardada ---------- */
-document.getElementById("btnActualizar").addEventListener("click", async ()=>{
-  let s=null;
-  try{ s = JSON.parse(localStorage.getItem(LS_KEY)||"null"); }catch(e){}
-  if(!s || !s.codigo){ salir(); return; }
-  const btn = document.getElementById("btnActualizar");
-  btn.disabled=true; btn.textContent="Actualizando...";
-  await entrar(s.codigo, s.pin, /*auto=*/true);
-  btn.disabled=false; btn.textContent="↻ Actualizar";
-  aviso("Datos actualizados ✔");
-});
+/* Datos de la cuenta */
+function pintarDatos(d){
+  const filas=[
+    ["Nombre", d.nombre||"—"],
+    ["Código", d.codigo||"—"],
+    ["Teléfono", d.telefono||"—"],
+    ["Correo", d.correo||"—"],
+    ["Paquete", d.plan||"Sin paquete"]
+  ];
+  document.getElementById("misDatos").innerHTML =
+    filas.map(f=>`<div class="fila"><span class="k">${f[0]}</span><span class="v">${f[1]}</span></div>`).join("");
+}
 
-/* ---------- Marcar entrada/salida desde el celular ---------- */
+/* =====================================================================
+   HISTORIAL (accesos + pagos)
+   ===================================================================== */
+async function cargarHistorial(){
+  if(!SESION) return;
+  try{
+    const { data, error } = await db.rpc("historial_socio", { p_codigo:SESION.codigo, p_pin:SESION.pin });
+    if(error || !data || data.ok!==true){
+      document.getElementById("listaAccesos").innerHTML='<div class="vacio">No se pudo cargar.</div>';
+      document.getElementById("listaPagos").innerHTML='<div class="vacio">No se pudo cargar.</div>';
+      return;
+    }
+    pintarAccesos(data.accesos||[]);
+    pintarPagos(data.pagos||[]);
+  }catch(e){}
+}
+
+function pintarAccesos(accesos){
+  const cont=document.getElementById("listaAccesos");
+  if(!accesos.length){ cont.innerHTML='<div class="vacio">Aún no tienes accesos registrados 💪</div>'; return; }
+  cont.innerHTML = accesos.map(a=>{
+    const fh=fechaHora(a.momento);
+    const esEnt=(a.tipo==="entrada");
+    const bloq=(a.resultado!=="permitido");
+    const pill = bloq ? `<span class="pill bad">Bloqueado</span>`
+                      : (esEnt ? `<span class="pill ent">Entrada</span>` : `<span class="pill sal">Salida</span>`);
+    return `<div class="fila">
+      <div class="izq">
+        <div class="ico">${esEnt?"➡️":"⬅️"}</div>
+        <div><div class="t1">${fh.f}</div><div class="t2">${fh.h}${bloq&&a.motivo_bloqueo?" · "+a.motivo_bloqueo:""}</div></div>
+      </div>
+      <div class="der">${pill}</div>
+    </div>`;
+  }).join("");
+}
+
+function pintarPagos(pagos){
+  const cont=document.getElementById("listaPagos");
+  if(!pagos.length){ cont.innerHTML='<div class="vacio">Aún no tienes pagos registrados.</div>'; return; }
+  cont.innerHTML = pagos.map(p=>{
+    const fh=fechaHora(p.fecha);
+    return `<div class="fila">
+      <div class="izq">
+        <div class="ico">🧾</div>
+        <div><div class="t1">${p.concepto||"Pago"}</div><div class="t2">${fh.f} · ${p.metodo||""} · ${p.folio||""}</div></div>
+      </div>
+      <div class="der"><span class="monto">${dinero(p.monto)}</span></div>
+    </div>`;
+  }).join("");
+}
+
+/* =====================================================================
+   MARCAR ENTRADA / SALIDA
+   ===================================================================== */
 document.getElementById("btnCheck").addEventListener("click", async ()=>{
-  if(!SESION || !SESION.codigo){ aviso("Vuelve a entrar a tu cuenta","err"); return; }
-  const btn = document.getElementById("btnCheck");
-  const msg = document.getElementById("checkMsg");
+  if(!SESION){ aviso("Vuelve a entrar","err"); return; }
+  const btn=document.getElementById("btnCheck"), msg=document.getElementById("checkMsg");
   btn.disabled=true; btn.textContent="Registrando..."; msg.textContent="";
   try{
     const { data, error } = await db.rpc("registrar_acceso_portal", { p_codigo:SESION.codigo, p_pin:SESION.pin });
     if(error) throw error;
     if(data && data.permitido){
-      const esSalida = (data.tipo === "salida");
-      msg.innerHTML = `<b style="color:var(--ok)">${esSalida ? "Salida registrada 👋" : "Entrada registrada 💪"}</b>`;
-      aviso(esSalida ? "Salida registrada ✔" : "Entrada registrada ✔");
+      const esSalida=(data.tipo==="salida");
+      msg.innerHTML=`<span style="color:var(--ok)">${esSalida?"Salida registrada 👋":"Entrada registrada 💪"}</span>`;
+      aviso(esSalida?"Salida registrada ✔":"Entrada registrada ✔");
     }else{
-      const m = (data && data.motivo) ? data.motivo : "No se pudo registrar";
-      msg.innerHTML = `<b style="color:var(--bad)">${m}</b>`;
-      aviso(m,"err");
+      const m=(data&&data.motivo)?data.motivo:"No se pudo registrar";
+      msg.innerHTML=`<span style="color:var(--bad)">${m}</span>`; aviso(m,"err");
     }
-    // Refresca los datos (por si descontó una visita)
-    await entrar(SESION.codigo, SESION.pin, /*auto=*/true);
+    await entrar(SESION.codigo, SESION.pin, true);  // refresca paquete e historial
   }catch(e){
-    msg.innerHTML = `<b style="color:var(--bad)">Error de conexión</b>`;
-    aviso("Error de conexión","err");
+    msg.innerHTML=`<span style="color:var(--bad)">Error de conexión</span>`; aviso("Error de conexión","err");
   }finally{
     btn.disabled=false; btn.textContent="📍 Registrar mi entrada / salida";
   }
 });
 
-/* ---------- Salir: borra la sesión y regresa a la pantalla A ---------- */
+/* =====================================================================
+   NAVEGACIÓN (tabs)
+   ===================================================================== */
+function mostrarTab(t){
+  document.getElementById("tabInicio").classList.toggle("oculto", t!=="Inicio");
+  document.getElementById("tabAccesos").classList.toggle("oculto", t!=="Accesos");
+  document.getElementById("tabCuenta").classList.toggle("oculto", t!=="Cuenta");
+  document.getElementById("navInicio").classList.toggle("on", t==="Inicio");
+  document.getElementById("navAccesos").classList.toggle("on", t==="Accesos");
+  document.getElementById("navCuenta").classList.toggle("on", t==="Cuenta");
+  window.scrollTo(0,0);
+}
+document.querySelectorAll(".nav button").forEach(b=>{
+  b.addEventListener("click", ()=>mostrarTab(b.dataset.tab));
+});
+
+/* =====================================================================
+   SALIR
+   ===================================================================== */
 function salir(silencioso){
-  SESION = null;
+  SESION=null; DATOS=null;
   try{ localStorage.removeItem(LS_KEY); }catch(e){}
-  document.getElementById("pantallaMembresia").classList.add("oculto");
-  document.getElementById("pantallaAcceso").classList.remove("oculto");
+  document.getElementById("app").classList.add("oculto");
+  document.getElementById("pantallaLogin").classList.remove("oculto");
   document.getElementById("formAcceso").reset();
-  document.getElementById("accesoError").textContent = "";
+  document.getElementById("accesoError").textContent="";
   if(!silencioso) aviso("Sesión cerrada");
 }
 document.getElementById("btnSalir").addEventListener("click", ()=>salir());
-document.getElementById("btnSalir2").addEventListener("click", ()=>salir());
 
 /* =====================================================================
-   ARRANQUE — auto-login si ya hay sesión guardada en el celular
+   ARRANQUE — auto-login
    ===================================================================== */
-(function arrancar(){
+(function(){
   if(SUPABASE_KEY==="PEGA_AQUI_TU_ANON_KEY"){
-    document.getElementById("accesoError").textContent =
-      "⚠ Falta pegar tu anon key en el código (línea de configuración).";
+    document.getElementById("accesoError").textContent="⚠ Falta pegar tu anon key en el código.";
   }
   let s=null;
-  try{ s = JSON.parse(localStorage.getItem(LS_KEY)||"null"); }catch(e){}
-  if(s && s.codigo && s.pin){
-    entrar(s.codigo, s.pin, /*auto=*/true);
-  }
+  try{ s=JSON.parse(localStorage.getItem(LS_KEY)||"null"); }catch(e){}
+  if(s && s.codigo && s.pin) entrar(s.codigo, s.pin, true);
 })();
 </script>
 </body>

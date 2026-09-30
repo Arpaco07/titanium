@@ -254,11 +254,14 @@ async function revisarSesion(){
 }
 db.auth.onAuthStateChange((_e, session)=>{ if(session) entrarKiosco(); });
 
+let kioscoIniciado = false;   // evita conectar el teclado más de una vez
 function entrarKiosco(){
   document.getElementById("pantallaLogin").classList.add("oculto");
   document.getElementById("kiosco").classList.remove("oculto");
   actualizarAforo();
   enfocar();
+  if(kioscoIniciado) return;   // lo de abajo solo se hace UNA vez
+  kioscoIniciado = true;
   // Reenfoca el input oculto cada tanto para que la pistola siempre "escriba" ahí,
   // pero SIN robar el foco cuando el socio está usando el teclado en pantalla.
   setInterval(enfocar, 2000);
