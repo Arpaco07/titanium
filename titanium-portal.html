@@ -203,9 +203,16 @@
       <!-- Tarjeta de estado (se pinta por JS) -->
       <div id="estadoCard"></div>
 
+      <!-- Marcar entrada/salida desde el celular -->
+      <div class="card" id="checkCard" style="text-align:center; padding:16px; margin-bottom:14px">
+        <button class="btn" id="btnCheck" style="width:100%; font-size:16px">📍 Registrar mi entrada / salida</button>
+        <div id="checkMsg" style="margin-top:10px; font-size:15px; min-height:20px"></div>
+        <div style="color:var(--txt3); font-size:11px; margin-top:4px">El sistema detecta solo si es tu entrada o tu salida.</div>
+      </div>
+
       <!-- Tarjeta del QR de acceso -->
       <div class="card qr-card">
-        <h3>Muestra este código para entrar</h3>
+        <h3>O muestra este código en la entrada</h3>
         <div id="qr_contenedor"></div>
         <div class="cod-grande" id="cod_grande"></div>
       </div>
@@ -237,6 +244,7 @@ const db = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* Clave para recordar la sesión del socio en el celular */
 const LS_KEY = "titanium_socio";
+let SESION = null;   // {codigo, pin} del socio con sesión activa (para marcar acceso)
 
 /* ---------- Utilidades ---------- */
 function dinero(n){ return "$"+Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -295,6 +303,7 @@ async function entrar(cod, pin, auto){
     }
 
     // OK: guarda la sesión del socio en el celular (blindado)
+    SESION = { codigo:cod, pin:pin };
     try{ localStorage.setItem(LS_KEY, JSON.stringify({ codigo:cod, pin:pin })); }catch(e){}
 
     mostrarMembresia(data);
@@ -404,8 +413,37 @@ document.getElementById("btnActualizar").addEventListener("click", async ()=>{
   aviso("Datos actualizados ✔");
 });
 
+/* ---------- Marcar entrada/salida desde el celular ---------- */
+document.getElementById("btnCheck").addEventListener("click", async ()=>{
+  if(!SESION || !SESION.codigo){ aviso("Vuelve a entrar a tu cuenta","err"); return; }
+  const btn = document.getElementById("btnCheck");
+  const msg = document.getElementById("checkMsg");
+  btn.disabled=true; btn.textContent="Registrando..."; msg.textContent="";
+  try{
+    const { data, error } = await db.rpc("registrar_acceso_portal", { p_codigo:SESION.codigo, p_pin:SESION.pin });
+    if(error) throw error;
+    if(data && data.permitido){
+      const esSalida = (data.tipo === "salida");
+      msg.innerHTML = `<b style="color:var(--ok)">${esSalida ? "Salida registrada 👋" : "Entrada registrada 💪"}</b>`;
+      aviso(esSalida ? "Salida registrada ✔" : "Entrada registrada ✔");
+    }else{
+      const m = (data && data.motivo) ? data.motivo : "No se pudo registrar";
+      msg.innerHTML = `<b style="color:var(--bad)">${m}</b>`;
+      aviso(m,"err");
+    }
+    // Refresca los datos (por si descontó una visita)
+    await entrar(SESION.codigo, SESION.pin, /*auto=*/true);
+  }catch(e){
+    msg.innerHTML = `<b style="color:var(--bad)">Error de conexión</b>`;
+    aviso("Error de conexión","err");
+  }finally{
+    btn.disabled=false; btn.textContent="📍 Registrar mi entrada / salida";
+  }
+});
+
 /* ---------- Salir: borra la sesión y regresa a la pantalla A ---------- */
 function salir(silencioso){
+  SESION = null;
   try{ localStorage.removeItem(LS_KEY); }catch(e){}
   document.getElementById("pantallaMembresia").classList.add("oculto");
   document.getElementById("pantallaAcceso").classList.remove("oculto");

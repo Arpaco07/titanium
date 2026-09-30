@@ -66,23 +66,23 @@
   .k-salir{background:transparent; color:var(--txt3); border:1px solid var(--line); padding:7px 12px; border-radius:9px; font-size:12px; margin-left:14px}
 
   /* Zona central grande */
-  .k-centro{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; position:relative}
+  .k-centro{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; position:relative; overflow-y:auto; min-height:0}
 
   /* Estado de reposo (esperando escaneo) */
-  .k-reposo{display:flex; flex-direction:column; align-items:center; gap:20px}
-  .k-reposo .icono{font-size:80px; animation:pulso 2s ease-in-out infinite}
+  .k-reposo{display:flex; flex-direction:column; align-items:center; gap:12px}
+  .k-reposo .icono{font-size:56px; animation:pulso 2s ease-in-out infinite}
   @keyframes pulso{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.08);opacity:1}}
-  .k-reposo h2{font-size:38px; font-weight:800; letter-spacing:1px}
-  .k-reposo p{color:var(--txt3); font-size:18px; max-width:520px}
+  .k-reposo h2{font-size:30px; font-weight:800; letter-spacing:1px}
+  .k-reposo p{color:var(--txt3); font-size:16px; max-width:520px}
   /* input invisible que capta el escaneo de la pistola */
-  #inpEscaner{position:absolute; opacity:0; pointer-events:none; width:1px; height:1px}
+  #inpEscaner{position:absolute; top:0; left:0; opacity:0; pointer-events:none; width:1px; height:1px}
 
   /* Teclado numérico en pantalla (para quien no trae su celular) */
   .k-keypad{margin-top:8px; background:var(--card); border:1px solid var(--line); border-radius:18px; padding:18px 18px 20px; width:min(320px,92vw); box-shadow:var(--sombra)}
   .k-keypad .et{color:var(--txt2); font-size:14px; margin-bottom:12px; font-weight:600}
-  .k-keypad .display{background:var(--bg2); border:1px solid var(--line); border-radius:12px; height:54px; display:flex; align-items:center; justify-content:center; font-size:30px; letter-spacing:8px; font-family:ui-monospace,monospace; color:var(--acc2); margin-bottom:14px}
-  .k-teclas{display:grid; grid-template-columns:repeat(3,1fr); gap:10px}
-  .k-teclas button{background:var(--bg2); border:1px solid var(--line); color:var(--txt); font-size:24px; font-weight:700; padding:16px 0; border-radius:14px; transition:background .05s}
+  .k-keypad .display{background:var(--bg2); border:1px solid var(--line); border-radius:12px; height:50px; display:flex; align-items:center; justify-content:center; font-size:28px; letter-spacing:8px; font-family:ui-monospace,monospace; color:var(--acc2); margin-bottom:12px}
+  .k-teclas{display:grid; grid-template-columns:repeat(3,1fr); gap:9px}
+  .k-teclas button{background:var(--bg2); border:1px solid var(--line); color:var(--txt); font-size:22px; font-weight:700; padding:12px 0; border-radius:12px; transition:background .05s}
   .k-teclas button:active{background:var(--card2)}
   .k-teclas button.ok{background:linear-gradient(135deg,var(--acc),#e05e00); color:#fff; border:none}
   .k-teclas button.del{color:var(--warn)}
@@ -171,19 +171,19 @@
       <div class="k-keypad">
         <div class="et">¿No traes tu celular? Teclea tu PIN 👇</div>
         <div class="display" id="pinDisplay">— — — —</div>
-        <div class="k-teclas">
-          <button onclick="tecla('1')">1</button>
-          <button onclick="tecla('2')">2</button>
-          <button onclick="tecla('3')">3</button>
-          <button onclick="tecla('4')">4</button>
-          <button onclick="tecla('5')">5</button>
-          <button onclick="tecla('6')">6</button>
-          <button onclick="tecla('7')">7</button>
-          <button onclick="tecla('8')">8</button>
-          <button onclick="tecla('9')">9</button>
-          <button class="del" onclick="tecla('del')">⌫</button>
-          <button onclick="tecla('0')">0</button>
-          <button class="ok" onclick="tecla('ok')">✓</button>
+        <div class="k-teclas" id="teclas">
+          <button type="button" data-k="1">1</button>
+          <button type="button" data-k="2">2</button>
+          <button type="button" data-k="3">3</button>
+          <button type="button" data-k="4">4</button>
+          <button type="button" data-k="5">5</button>
+          <button type="button" data-k="6">6</button>
+          <button type="button" data-k="7">7</button>
+          <button type="button" data-k="8">8</button>
+          <button type="button" data-k="9">9</button>
+          <button type="button" class="del" data-k="del">⌫</button>
+          <button type="button" data-k="0">0</button>
+          <button type="button" class="ok" data-k="ok">✓</button>
         </div>
       </div>
     </div>
@@ -202,7 +202,7 @@
    CONFIGURACIÓN — pega tu anon key igual que en las demás pantallas.
    ===================================================================== */
 const SUPABASE_URL  = "https://qwdswodysasskchrgquz.supabase.co";
-const SUPABASE_KEY  = "PEGA_AQUI_TU_ANON_KEY";   // 👈 SOLO cambia esto
+const SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3ZHN3b2R5c2Fzc2tjaHJncXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MjQ3OTgsImV4cCI6MjEwNjMwMDc5OH0.1XFVf34Vr8PDIUkf78bOvhIqk4mTPKlO74farozVdjs";   // 👈 SOLO cambia esto
 
 const { createClient } = window.supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -259,11 +259,39 @@ function entrarKiosco(){
   document.getElementById("kiosco").classList.remove("oculto");
   actualizarAforo();
   enfocar();
-  // Mantiene el foco en el input oculto para que la pistola siempre "escriba" ahí
-  document.addEventListener("click", enfocar);
-  setInterval(enfocar, 1500);
+  // Reenfoca el input oculto cada tanto para que la pistola siempre "escriba" ahí,
+  // pero SIN robar el foco cuando el socio está usando el teclado en pantalla.
+  setInterval(enfocar, 2000);
+  // Teclado en pantalla: un solo listener para todos los botones (robusto)
+  document.getElementById("teclas").addEventListener("click", (e)=>{
+    const b = e.target.closest("button");
+    if(!b) return;
+    e.stopPropagation();
+    tecla(b.dataset.k);
+  });
 }
-function enfocar(){ const i=document.getElementById("inpEscaner"); if(i) i.focus(); }
+function enfocar(){
+  // No robar el foco si el socio está tecleando su PIN
+  if(pinBuf) return;
+  const i=document.getElementById("inpEscaner"); if(i) i.focus();
+}
+
+/* ---------- Teclado numérico en pantalla (PIN sin celular) ---------- */
+let pinBuf = "";
+function tecla(t){
+  if(procesando) return;
+  if(t==="del"){ pinBuf = pinBuf.slice(0,-1); }
+  else if(t==="ok"){
+    if(pinBuf){ const v = pinBuf; pinBuf = ""; pintarPin(); validar(v); }
+    return;
+  }
+  else if(pinBuf.length < 8){ pinBuf += t; }
+  pintarPin();
+}
+function pintarPin(){
+  const d = document.getElementById("pinDisplay");
+  d.textContent = pinBuf ? pinBuf.split("").join(" ") : "— — — —";
+}
 
 /* ---------- Lectura del escáner (la pistola teclea + Enter) ---------- */
 document.getElementById("inpEscaner").addEventListener("keydown", async (e)=>{
@@ -331,6 +359,7 @@ function mostrarResultado(d){
 function volverReposo(){
   document.getElementById("resultado").classList.add("oculto");
   document.getElementById("reposo").classList.remove("oculto");
+  pinBuf = ""; pintarPin();
   enfocar();
 }
 
