@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Titanium · Personal y Nómina</title>
+
+<!-- Librería: Supabase (base de datos). Aquí no se usa QR. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  /* ====================================================================
+     TITANIUM · Tema oscuro tipo gym (metálico + acento ámbar)
+     ==================================================================== */
+  :root{
+    --bg:#0d0f14; --bg2:#141821; --card:#1a1f2b; --card2:#20263485;
+    --line:#2a3141; --txt:#e8ecf3; --txt2:#9aa4b6; --txt3:#6b7488;
+    --acc:#ff7a1a; --acc2:#ffa04d; --ok:#2fd07a; --warn:#f7b731; --bad:#ff5964;
+    --radio:14px; --sombra:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%, #1b2130 0%, var(--bg) 55%);
+    color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .oculto{display:none !important}
+  button{font-family:inherit; cursor:pointer}
+  input,select{font-family:inherit}
+
+  /* ---- Encabezado ---- */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; background:#0b0d12cc; backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20;
+  }
+  .marca{display:flex; align-items:center; gap:12px}
+  .logo{
+    width:38px; height:38px; border-radius:10px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--acc),#c94e00); color:#fff; font-size:20px;
+    box-shadow:0 4px 14px rgba(255,122,26,.4);
+  }
+  .marca h1{font-size:18px; letter-spacing:3px; font-weight:800}
+  .marca span{color:var(--acc)}
+  .marca small{display:block; color:var(--txt3); letter-spacing:2px; font-size:10px; font-weight:600}
+  .btn-salir{background:transparent; color:var(--txt2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; font-size:13px}
+  .btn-salir:hover{color:var(--txt); border-color:var(--txt3)}
+
+  /* ---- Pestañas ---- */
+  nav.tabs{display:flex; gap:6px; padding:14px 20px 0; max-width:1100px; margin:0 auto; width:100%}
+  nav.tabs button{
+    background:transparent; color:var(--txt2); border:none; padding:12px 18px;
+    border-radius:12px 12px 0 0; font-size:14px; font-weight:600; position:relative;
+  }
+  nav.tabs button.on{color:var(--acc); background:var(--card)}
+  nav.tabs button.on::after{content:""; position:absolute; left:18px; right:18px; bottom:-1px; height:2px; background:var(--acc)}
+
+  main{max-width:1100px; margin:0 auto; padding:20px}
+
+  /* ---- Tarjetas / formularios ---- */
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radio); padding:22px; box-shadow:var(--sombra)}
+  .card h2{font-size:16px; margin-bottom:4px; display:flex; align-items:center; gap:8px}
+  .card .sub{color:var(--txt3); font-size:13px; margin-bottom:18px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px}
+  .campo{display:flex; flex-direction:column; gap:6px}
+  .campo label{font-size:12px; color:var(--txt2); font-weight:600; letter-spacing:.3px}
+  .campo label b{color:var(--acc)}
+  .campo input,.campo select{
+    background:var(--bg2); border:1px solid var(--line); color:var(--txt);
+    padding:11px 13px; border-radius:10px; font-size:14px; outline:none; width:100%;
+  }
+  .campo input:focus,.campo select:focus{border-color:var(--acc); box-shadow:0 0 0 3px rgba(255,122,26,.15)}
+  .campo .ayuda{font-size:11px; color:var(--txt3)}
+
+  .divisor{height:1px; background:var(--line); margin:22px 0}
+
+  .btn{
+    background:linear-gradient(135deg,var(--acc),#e05e00); color:#fff; border:none;
+    padding:13px 22px; border-radius:11px; font-size:15px; font-weight:700; letter-spacing:.3px;
+    box-shadow:0 6px 18px rgba(255,122,26,.35); transition:transform .05s;
+  }
+  .btn:hover{transform:translateY(-1px)} .btn:active{transform:translateY(0)}
+  .btn:disabled{opacity:.5; cursor:not-allowed; transform:none}
+  .btn.sec{background:var(--card2); color:var(--txt); box-shadow:none; border:1px solid var(--line)}
+  .btn.chico{padding:8px 14px; font-size:13px; border-radius:9px}
+
+  .resumen{background:var(--card2); border:1px dashed var(--line); border-radius:12px; padding:14px 16px; margin-top:4px}
+  .resumen .fila{display:flex; justify-content:space-between; font-size:14px; padding:4px 0}
+  .resumen .fila b{color:var(--acc2); font-size:18px}
+
+  /* ---- Buscador + tabla ---- */
+  .barra{display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap}
+  .barra input{flex:1; min-width:200px; background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:11px 14px; border-radius:10px; font-size:14px; outline:none}
+  .tabla-wrap{overflow-x:auto; border-radius:12px; border:1px solid var(--line)}
+  table{width:100%; border-collapse:collapse; font-size:14px; min-width:640px}
+  th{text-align:left; padding:12px 14px; color:var(--txt3); font-size:11px; letter-spacing:.5px; text-transform:uppercase; background:var(--bg2); border-bottom:1px solid var(--line)}
+  td{padding:12px 14px; border-bottom:1px solid var(--line); color:var(--txt)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#ffffff05}
+  .cod{font-family:ui-monospace,monospace; color:var(--acc2); font-size:13px}
+  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700}
+  .pill.ok{background:rgba(47,208,122,.15); color:var(--ok)}
+  .pill.warn{background:rgba(247,183,49,.15); color:var(--warn)}
+  .pill.bad{background:rgba(255,89,100,.15); color:var(--bad)}
+  .pill.gris{background:#ffffff10; color:var(--txt2)}
+  .vacio{text-align:center; padding:40px; color:var(--txt3)}
+
+  /* ---- Login ---- */
+  .login-wrap{min-height:100vh; display:grid; place-items:center; padding:20px}
+  .login{width:100%; max-width:380px; text-align:center}
+  .login .logo{width:64px; height:64px; font-size:32px; margin:0 auto 18px; border-radius:16px}
+  .login h1{letter-spacing:4px; font-weight:800; margin-bottom:6px}
+  .login h1 span{color:var(--acc)}
+  .login p{color:var(--txt3); font-size:13px; margin-bottom:26px}
+  .login .campo{text-align:left; margin-bottom:14px}
+  .login .btn{width:100%; margin-top:6px}
+
+  /* ---- Modal ---- */
+  .modal-bg{position:fixed; inset:0; background:#000a; display:grid; place-items:center; padding:20px; z-index:50}
+  .modal{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px; width:100%; max-width:460px; box-shadow:var(--sombra); max-height:90vh; overflow:auto}
+  .modal h2{margin-bottom:4px} .modal .cerrar{float:right; background:none; border:none; color:var(--txt3); font-size:22px; line-height:1}
+
+  /* ---- Aviso (toast) ---- */
+  #aviso{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:14px 22px; border-radius:12px; font-size:14px; font-weight:600; box-shadow:var(--sombra); z-index:90; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; max-width:90%}
+  #aviso.show{opacity:1; transform:translateX(-50%) translateY(-4px)}
+  #aviso.ok{background:var(--ok); color:#04231a} #aviso.err{background:var(--bad); color:#2a0409}
+
+  /* ==== Clases nuevas para el módulo de PERSONAL ==== */
+  /* Bloque de días del horario semanal */
+  .dia-bloque{border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:12px; background:var(--bg2)}
+  .dia-bloque .dia-titulo{font-size:13px; font-weight:700; color:var(--acc2); letter-spacing:.5px; margin-bottom:8px}
+  .turno-fila{display:flex; align-items:center; justify-content:space-between; gap:10px; font-size:14px; padding:6px 0}
+  .turno-fila .horas{font-family:ui-monospace,monospace; color:var(--txt)}
+  .turno-fila .quitar{background:none; border:1px solid var(--line); color:var(--bad); border-radius:8px; width:28px; height:28px; font-size:15px; line-height:1}
+  .turno-fila .quitar:hover{border-color:var(--bad)}
+  .sin-turnos{color:var(--txt3); font-size:12px; padding:2px 0 6px}
+  .mini-form{display:flex; gap:8px; align-items:flex-end; margin-top:6px; flex-wrap:wrap}
+  .mini-form .campo{gap:3px}
+  .mini-form .campo input{padding:8px 10px}
+  .mini-form .btn.chico{white-space:nowrap}
+  /* Fila info del empleado en el modal de pago */
+  .info-emp{background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:16px; font-size:14px}
+  .info-emp .nom{font-weight:700; font-size:15px}
+  .info-emp .det{color:var(--txt2); font-size:13px; margin-top:2px}
+  .pill.inst{background:rgba(255,122,26,.18); color:var(--acc2)}
+
+  @media(max-width:560px){
+    nav.tabs button{padding:11px 12px; font-size:13px}
+    main{padding:14px}
+    .card{padding:16px}
+    .mini-form{flex-direction:column; align-items:stretch}
+    .mini-form .btn.chico{width:100%}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= PANTALLA DE LOGIN ================= -->
+<div id="pantallaLogin" class="login-wrap">
+  <form class="login card" id="formLogin">
+    <div class="logo">🏋️</div>
+    <h1>TITA<span>NIUM</span></h1>
+    <p>Panel de administración</p>
+    <div class="campo">
+      <label>Correo</label>
+      <input type="email" id="loginEmail" required autocomplete="username" placeholder="tucorreo@ejemplo.com">
+    </div>
+    <div class="campo">
+      <label>Contraseña</label>
+      <input type="password" id="loginPass" required autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn" type="submit" id="btnLogin">Entrar</button>
+    <p id="loginError" style="color:var(--bad); margin-top:14px; min-height:16px"></p>
+  </form>
+</div>
+
+<!-- ================= APLICACIÓN ================= -->
+<div id="app" class="oculto">
+  <header>
+    <div class="marca">
+      <div class="logo">🏋️</div>
+      <div>
+        <h1>TITA<span>NIUM</span></h1>
+        <small>PERSONAL Y NÓMINA</small>
+      </div>
+    </div>
+    <button class="btn-salir" id="btnSalir">Cerrar sesión</button>
+  </header>
+
+  <nav class="tabs">
+    <button id="tabNuevo" class="on" onclick="mostrarVista('nuevo')">➕ Nuevo empleado</button>
+    <button id="tabLista" onclick="mostrarVista('lista')">👥 Personal</button>
+    <button id="tabNomina" onclick="mostrarVista('nomina')">💵 Nómina</button>
+  </nav>
+
+  <main>
+    <!-- ---------- VISTA: NUEVO / EDITAR EMPLEADO ---------- -->
+    <section id="vistaNuevo" class="card">
+      <h2 id="tituloForm">➕ Registrar empleado</h2>
+      <p class="sub">Da de alta a un empleado administrativo o instructor con sus datos de pago.</p>
+
+      <form id="formEmpleado">
+        <!-- id oculto: si tiene valor, estamos EDITANDO -->
+        <input type="hidden" id="e_id">
+        <div class="grid">
+          <div class="campo">
+            <label>Nombre completo <b>*</b></label>
+            <input type="text" id="e_nombre" required placeholder="Ej. Juan Pérez López">
+          </div>
+          <div class="campo">
+            <label>Puesto</label>
+            <select id="e_puesto">
+              <option value="admin">Administrador</option>
+              <option value="recepcion">Recepción</option>
+              <option value="instructor">Instructor</option>
+              <option value="mantenimiento">Mantenimiento</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label>Tipo de pago</label>
+            <select id="e_tipo_pago">
+              <option value="hora">Por hora</option>
+              <option value="semana">Por semana</option>
+              <option value="mes">Por mes (sueldo)</option>
+              <option value="clase">Por clase</option>
+              <option value="comision">Comisión</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label id="lbl_tarifa">Tarifa / Sueldo ($) <b>*</b></label>
+            <input type="number" id="e_tarifa" step="0.01" min="0" required placeholder="0.00">
+          </div>
+          <div class="campo">
+            <label>Especialidad</label>
+            <input type="text" id="e_especialidad" placeholder="Ej. Spinning, Zumba">
+            <span class="ayuda">Solo para instructores: qué clases imparte, ej. Spinning, Zumba.</span>
+          </div>
+          <div class="campo">
+            <label>Teléfono</label>
+            <input type="tel" id="e_telefono" placeholder="Ej. 2871234567">
+          </div>
+          <div class="campo">
+            <label>Correo</label>
+            <input type="email" id="e_correo" placeholder="empleado@ejemplo.com">
+          </div>
+          <div class="campo">
+            <label>Fecha de ingreso</label>
+            <input type="date" id="e_fecha_ingreso">
+          </div>
+          <div class="campo">
+            <label>Estatus</label>
+            <select id="e_estatus">
+              <option value="activo">Activo</option>
+              <option value="inactivo">Inactivo</option>
+            </select>
+            <span class="ayuda">Marca "Inactivo" para dar de baja sin borrar su historial.</span>
+          </div>
+        </div>
+
+        <div class="campo" style="margin-top:14px">
+          <label>Notas</label>
+          <input type="text" id="e_notas" placeholder="Notas internas (opcional)">
+        </div>
+
+        <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap">
+          <button class="btn" type="submit" id="btnGuardarEmp">Guardar empleado</button>
+          <button class="btn sec" type="button" id="btnCancelarEdicion" onclick="cancelarEdicion()" style="display:none">Cancelar edición</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ---------- VISTA: PERSONAL (LISTA) ---------- -->
+    <section id="vistaLista" class="oculto">
+      <div class="barra">
+        <input type="text" id="buscar" placeholder="🔍 Buscar por nombre o puesto...">
+        <button class="btn sec chico" onclick="cargarEmpleados()">↻ Actualizar</button>
+      </div>
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th><th>Nombre</th><th>Puesto</th><th>Pago</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="tbodyEmpleados">
+            <tr><td colspan="5" class="vacio">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- VISTA: NÓMINA (HISTORIAL DE PAGOS) ---------- -->
+    <section id="vistaNomina" class="oculto">
+      <div class="barra">
+        <div class="campo" style="flex:1; min-width:150px">
+          <label>Desde</label>
+          <input type="date" id="nom_desde">
+        </div>
+        <div class="campo" style="flex:1; min-width:150px">
+          <label>Hasta</label>
+          <input type="date" id="nom_hasta">
+        </div>
+        <div class="campo" style="justify-content:flex-end">
+          <label style="visibility:hidden">Ver</label>
+          <button class="btn chico" onclick="cargarNomina()">Ver</button>
+        </div>
+      </div>
+
+      <div class="resumen" id="nom_total" style="display:none; margin-bottom:16px"></div>
+
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Folio</th><th>Fecha</th><th>Empleado</th><th>Concepto</th><th>Método</th><th>Monto</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyNomina">
+            <tr><td colspan="6" class="vacio">Elige un periodo y presiona "Ver".</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ================= MODAL: HORARIO SEMANAL ================= -->
+<div id="modalHorario" class="modal-bg oculto">
+  <div class="modal">
+    <button class="cerrar" onclick="cerrarHorario()">×</button>
+    <h2>🗓️ Horario semanal</h2>
+    <p class="sub" id="h_empNombre"></p>
+    <div id="h_dias">
+      <p class="vacio">Cargando...</p>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: REGISTRAR PAGO (NÓMINA) ================= -->
+<div id="modalPago" class="modal-bg oculto">
+  <div class="modal">
+    <button class="cerrar" onclick="cerrarPago()">×</button>
+    <h2>💵 Registrar pago</h2>
+    <div class="info-emp" id="p_info"></div>
+    <form id="formPago">
+      <div class="campo" style="margin-bottom:14px">
+        <label>Concepto</label>
+        <input type="text" id="p_concepto" placeholder="Sueldo">
+      </div>
+      <div class="grid" style="margin-bottom:14px">
+        <div class="campo">
+          <label>Periodo inicio</label>
+          <input type="date" id="p_periodo_inicio">
+        </div>
+        <div class="campo">
+          <label>Periodo fin</label>
+          <input type="date" id="p_periodo_fin">
+        </div>
+        <div class="campo">
+          <label>Horas</label>
+          <input type="number" id="p_horas" step="0.5" min="0" placeholder="0">
+        </div>
+        <div class="campo">
+          <label>Clases</label>
+          <input type="number" id="p_clases" step="1" min="0" placeholder="0">
+        </div>
+      </div>
+      <div class="grid" style="margin-bottom:14px">
+        <div class="campo">
+          <label>Monto a pagar ($) <b>*</b></label>
+          <input type="number" id="p_monto" step="0.01" min="0" required placeholder="0.00">
+          <span class="ayuda" id="p_ayudaMonto"></span>
+        </div>
+        <div class="campo">
+          <label>Método de pago</label>
+          <select id="p_metodo">
+            <option value="efectivo">Efectivo</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="transferencia">Transferencia</option>
+          </select>
+        </div>
+      </div>
+      <div class="campo" style="margin-bottom:14px">
+        <label>Notas</label>
+        <input type="text" id="p_notas" placeholder="Notas del pago (opcional)">
+      </div>
+      <button class="btn" type="submit" id="btnRegistrarPago" style="width:100%; margin-top:6px">Registrar pago</button>
+    </form>
+  </div>
+</div>
+
+<div id="aviso"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN — Conexión a tu Supabase
+   ---------------------------------------------------------------------
+   La URL ya está puesta. Solo falta pegar tu "anon public key":
+   Supabase → Project Settings (engrane) → API → "Project API keys"
+   → copia la que dice  anon  public  y pégala entre las comillas.
+   ===================================================================== */
+const SUPABASE_URL  = "https://qwdswodysasskchrgquz.supabase.co";
+const SUPABASE_KEY  = "PEGA_AQUI_TU_ANON_KEY";   // 👈 SOLO cambia esto
+
+const { createClient } = window.supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let EMPLEADOS = [];        // lista actual (para el buscador)
+let empHorario = null;     // empleado abierto en el modal de horario
+let empPago = null;        // empleado abierto en el modal de pago
+
+/* Etiquetas legibles para puestos y tipos de pago */
+const PUESTO_TXT = { admin:"Administrador", recepcion:"Recepción", instructor:"Instructor", mantenimiento:"Mantenimiento", otro:"Otro" };
+const TIPOPAGO_TXT = { hora:"Por hora", semana:"Por semana", mes:"Por mes", clase:"Por clase", comision:"Comisión" };
+/* Días de la semana. En BD: 0=Domingo..6=Sábado. Se muestran de Lunes a Domingo. */
+const DIAS_NOMBRE = ["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"];
+const ORDEN_DIAS = [1,2,3,4,5,6,0];
+
+/* ---------- Utilidades ---------- */
+function hoyISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function primerDiaMesISO(){ const d=new Date(); return new Date(d.getFullYear(), d.getMonth(), 1).toLocaleDateString("sv-SE"); }
+function dinero(n){ return "$"+Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function aviso(msg, tipo="ok"){
+  const a=document.getElementById("aviso");
+  a.textContent=msg; a.className=tipo+" show";
+  setTimeout(()=>a.classList.remove("show"), 3200);
+}
+
+/* ---------- Autenticación ---------- */
+document.getElementById("formLogin").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn=document.getElementById("btnLogin");
+  const err=document.getElementById("loginError");
+  err.textContent=""; btn.disabled=true; btn.textContent="Entrando...";
+  const { error } = await db.auth.signInWithPassword({
+    email:document.getElementById("loginEmail").value.trim(),
+    password:document.getElementById("loginPass").value
+  });
+  btn.disabled=false; btn.textContent="Entrar";
+  if(error){ err.textContent = "Correo o contraseña incorrectos."; }
+});
+
+document.getElementById("btnSalir").addEventListener("click", async ()=>{
+  await db.auth.signOut(); location.reload();
+});
+
+async function revisarSesion(){
+  const { data:{ session } } = await db.auth.getSession();
+  if(session){ entrarApp(); } else { document.getElementById("pantallaLogin").classList.remove("oculto"); }
+}
+db.auth.onAuthStateChange((_e, session)=>{ if(session) entrarApp(); });
+
+async function entrarApp(){
+  document.getElementById("pantallaLogin").classList.add("oculto");
+  document.getElementById("app").classList.remove("oculto");
+  // Valores por defecto de fechas
+  document.getElementById("e_fecha_ingreso").value = hoyISO();
+  document.getElementById("nom_desde").value = primerDiaMesISO();
+  document.getElementById("nom_hasta").value = hoyISO();
+  await cargarEmpleados();
+  await cargarNomina();
+}
+
+/* ---------- Navegación entre vistas ---------- */
+function mostrarVista(v){
+  document.getElementById("vistaNuevo").classList.toggle("oculto", v!=="nuevo");
+  document.getElementById("vistaLista").classList.toggle("oculto", v!=="lista");
+  document.getElementById("vistaNomina").classList.toggle("oculto", v!=="nomina");
+  document.getElementById("tabNuevo").classList.toggle("on", v==="nuevo");
+  document.getElementById("tabLista").classList.toggle("on", v==="lista");
+  document.getElementById("tabNomina").classList.toggle("on", v==="nomina");
+  if(v==="lista") cargarEmpleados();
+  if(v==="nomina") cargarNomina();
+}
+
+/* ---------- Label dinámico de tarifa según el tipo de pago ---------- */
+const eTipoPago = document.getElementById("e_tipo_pago");
+const lblTarifa = document.getElementById("lbl_tarifa");
+function actualizarLabelTarifa(){
+  if(eTipoPago.value==="comision"){
+    lblTarifa.innerHTML = 'Comisión (%) <b>*</b>';
+  }else{
+    lblTarifa.innerHTML = 'Tarifa / Sueldo ($) <b>*</b>';
+  }
+}
+eTipoPago.addEventListener("change", actualizarLabelTarifa);
+
+/* ---------- Texto legible del pago (para la lista) ---------- */
+function textoPago(emp){
+  const t=emp.tipo_pago, tar=emp.tarifa;
+  if(t==="comision") return Number(tar||0)+"% comisión";
+  const suf = { hora:"/ hora", semana:"/ semana", mes:"/ mes", clase:"/ clase" }[t] || "";
+  return dinero(tar)+" "+suf;
+}
+
+/* ---------- Guardar empleado (alta o edición) ---------- */
+document.getElementById("formEmpleado").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn=document.getElementById("btnGuardarEmp");
+  btn.disabled=true; btn.textContent="Guardando...";
+  try{
+    const id = document.getElementById("e_id").value;
+    // OJO: el 'codigo' (EMP-0001) lo autogenera la BD, NO se envía.
+    const datos = {
+      nombre_completo: document.getElementById("e_nombre").value.trim(),
+      puesto:      document.getElementById("e_puesto").value,
+      tipo_pago:   document.getElementById("e_tipo_pago").value,
+      tarifa:      Number(document.getElementById("e_tarifa").value||0),
+      especialidad:document.getElementById("e_especialidad").value.trim() || null,
+      telefono:    document.getElementById("e_telefono").value.trim() || null,
+      correo:      document.getElementById("e_correo").value.trim() || null,
+      fecha_ingreso: document.getElementById("e_fecha_ingreso").value || null,
+      estatus:     document.getElementById("e_estatus").value,
+      notas:       document.getElementById("e_notas").value.trim() || null
+    };
+
+    if(id){
+      // EDICIÓN
+      const { error } = await db.from("empleados").update(datos).eq("id", id);
+      if(error) throw error;
+      aviso("Empleado actualizado ✔");
+    }else{
+      // ALTA
+      const { error } = await db.from("empleados").insert(datos);
+      if(error) throw error;
+      aviso("Empleado registrado ✔");
+    }
+    limpiarForm();
+    await cargarEmpleados();
+    mostrarVista("lista");
+  }catch(err){
+    aviso("Error: "+(err.message||"no se pudo guardar"),"err");
+  }finally{
+    btn.disabled=false; btn.textContent="Guardar empleado";
+  }
+});
+
+/* Limpia el formulario y sale del modo edición */
+function limpiarForm(){
+  document.getElementById("formEmpleado").reset();
+  document.getElementById("e_id").value = "";
+  document.getElementById("e_fecha_ingreso").value = hoyISO();
+  document.getElementById("tituloForm").textContent = "➕ Registrar empleado";
+  document.getElementById("btnCancelarEdicion").style.display = "none";
+  actualizarLabelTarifa();
+}
+function cancelarEdicion(){
+  limpiarForm();
+  mostrarVista("lista");
+}
+
+/* ---------- Cargar un empleado en el formulario para editar ---------- */
+function editarEmpleado(id){
+  const emp = EMPLEADOS.find(x=>x.id===id);
+  if(!emp){ aviso("No se encontró el empleado.","err"); return; }
+  document.getElementById("e_id").value = emp.id;
+  document.getElementById("e_nombre").value = emp.nombre_completo||"";
+  document.getElementById("e_puesto").value = emp.puesto||"otro";
+  document.getElementById("e_tipo_pago").value = emp.tipo_pago||"mes";
+  document.getElementById("e_tarifa").value = emp.tarifa!=null ? emp.tarifa : "";
+  document.getElementById("e_especialidad").value = emp.especialidad||"";
+  document.getElementById("e_telefono").value = emp.telefono||"";
+  document.getElementById("e_correo").value = emp.correo||"";
+  document.getElementById("e_fecha_ingreso").value = emp.fecha_ingreso||"";
+  document.getElementById("e_estatus").value = emp.estatus||"activo";
+  document.getElementById("e_notas").value = emp.notas||"";
+  actualizarLabelTarifa();
+  document.getElementById("tituloForm").textContent = "✏️ Editar empleado";
+  document.getElementById("btnCancelarEdicion").style.display = "inline-block";
+  mostrarVista("nuevo");
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+/* ---------- Lista de personal ---------- */
+async function cargarEmpleados(){
+  const tb=document.getElementById("tbodyEmpleados");
+  tb.innerHTML='<tr><td colspan="5" class="vacio">Cargando...</td></tr>';
+  // Solo activos, ordenados por nombre
+  const { data, error } = await db.from("empleados").select("*").eq("estatus","activo").order("nombre_completo");
+  if(error){ tb.innerHTML=`<tr><td colspan="5" class="vacio">Error: ${error.message}</td></tr>`; return; }
+  EMPLEADOS = data||[];
+  pintarEmpleados(EMPLEADOS);
+}
+
+function pintarEmpleados(lista){
+  const tb=document.getElementById("tbodyEmpleados");
+  if(!lista.length){ tb.innerHTML='<tr><td colspan="5" class="vacio">Aún no hay personal activo. Da de alta al primero 💪</td></tr>'; return; }
+  tb.innerHTML = lista.map(emp=>{
+    const esInstructor = emp.puesto==="instructor";
+    const pillClase = esInstructor ? "pill inst" : "pill gris";
+    const esp = esInstructor && emp.especialidad ? `<br><span style="color:var(--txt3);font-size:12px">${emp.especialidad}</span>` : "";
+    return `
+    <tr>
+      <td class="cod">${emp.codigo||""}</td>
+      <td>${emp.nombre_completo}${emp.telefono?`<br><span style="color:var(--txt3);font-size:12px">${emp.telefono}</span>`:""}</td>
+      <td><span class="${pillClase}">${PUESTO_TXT[emp.puesto]||emp.puesto||"—"}</span>${esp}</td>
+      <td>${textoPago(emp)}</td>
+      <td style="white-space:nowrap">
+        <button class="btn sec chico" onclick="abrirHorario('${emp.id}')">Horario</button>
+        <button class="btn sec chico" onclick="abrirPago('${emp.id}')">Pagar</button>
+        <button class="btn sec chico" onclick="editarEmpleado('${emp.id}')">Editar</button>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+document.getElementById("buscar").addEventListener("input", (e)=>{
+  const q=e.target.value.toLowerCase().trim();
+  pintarEmpleados(EMPLEADOS.filter(emp=>
+    (emp.nombre_completo||"").toLowerCase().includes(q) ||
+    (PUESTO_TXT[emp.puesto]||emp.puesto||"").toLowerCase().includes(q)
+  ));
+});
+
+/* =====================================================================
+   MODAL: HORARIO SEMANAL
+   ===================================================================== */
+async function abrirHorario(id){
+  empHorario = EMPLEADOS.find(x=>x.id===id);
+  if(!empHorario){ aviso("No se encontró el empleado.","err"); return; }
+  document.getElementById("h_empNombre").textContent = empHorario.nombre_completo;
+  document.getElementById("modalHorario").classList.remove("oculto");
+  await renderHorario();
+}
+function cerrarHorario(){ document.getElementById("modalHorario").classList.add("oculto"); empHorario=null; }
+
+async function renderHorario(){
+  const cont = document.getElementById("h_dias");
+  cont.innerHTML = '<p class="vacio">Cargando...</p>';
+  const { data, error } = await db.from("horarios_empleados")
+    .select("*").eq("empleado_id", empHorario.id)
+    .order("dia_semana").order("hora_entrada");
+  if(error){ cont.innerHTML = `<p class="vacio">Error: ${error.message}</p>`; return; }
+  const turnos = data||[];
+  // Agrupa por día
+  const porDia = {};
+  turnos.forEach(t=>{ (porDia[t.dia_semana] = porDia[t.dia_semana]||[]).push(t); });
+
+  cont.innerHTML = ORDEN_DIAS.map(dia=>{
+    const lista = porDia[dia]||[];
+    const filas = lista.length
+      ? lista.map(t=>`
+          <div class="turno-fila">
+            <span class="horas">${(t.hora_entrada||"").slice(0,5)} – ${(t.hora_salida||"").slice(0,5)}</span>
+            <button class="quitar" title="Quitar turno" onclick="quitarTurno('${t.id}')">×</button>
+          </div>`).join("")
+      : '<div class="sin-turnos">Sin turnos</div>';
+    return `
+      <div class="dia-bloque">
+        <div class="dia-titulo">${DIAS_NOMBRE[dia]}</div>
+        ${filas}
+        <div class="mini-form">
+          <div class="campo">
+            <label>Entrada</label>
+            <input type="time" id="ent_${dia}">
+          </div>
+          <div class="campo">
+            <label>Salida</label>
+            <input type="time" id="sal_${dia}">
+          </div>
+          <button type="button" class="btn sec chico" onclick="agregarTurno(${dia})">＋ Agregar</button>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+async function agregarTurno(dia){
+  const ent = document.getElementById("ent_"+dia).value;
+  const sal = document.getElementById("sal_"+dia).value;
+  if(!ent || !sal){ aviso("Escribe hora de entrada y salida.","err"); return; }
+  if(sal <= ent){ aviso("La salida debe ser después de la entrada.","err"); return; }
+  try{
+    const { error } = await db.from("horarios_empleados").insert({
+      empleado_id: empHorario.id,
+      dia_semana: dia,
+      hora_entrada: ent,
+      hora_salida: sal
+    });
+    if(error) throw error;
+    aviso("Turno agregado ✔");
+    await renderHorario();
+  }catch(err){
+    aviso("Error: "+(err.message||"no se pudo agregar"),"err");
+  }
+}
+
+async function quitarTurno(id){
+  try{
+    const { error } = await db.from("horarios_empleados").delete().eq("id", id);
+    if(error) throw error;
+    aviso("Turno quitado ✔");
+    await renderHorario();
+  }catch(err){
+    aviso("Error: "+(err.message||"no se pudo quitar"),"err");
+  }
+}
+
+/* =====================================================================
+   MODAL: REGISTRAR PAGO (NÓMINA)
+   ===================================================================== */
+function abrirPago(id){
+  empPago = EMPLEADOS.find(x=>x.id===id);
+  if(!empPago){ aviso("No se encontró el empleado.","err"); return; }
+  // Info del empleado
+  document.getElementById("p_info").innerHTML = `
+    <div class="nom">${empPago.nombre_completo}</div>
+    <div class="det">${PUESTO_TXT[empPago.puesto]||empPago.puesto} · Pago: ${textoPago(empPago)}</div>`;
+  // Reinicia el formulario
+  document.getElementById("formPago").reset();
+  document.getElementById("p_concepto").value = "Sueldo";
+  // Sugerencia de monto por defecto según tipo de pago
+  const t = empPago.tipo_pago;
+  let ayuda = "";
+  if(t==="hora"){ ayuda = "Sugerencia: monto = horas × "+dinero(empPago.tarifa)+" por hora."; }
+  else if(t==="clase"){ ayuda = "Sugerencia: monto = clases × "+dinero(empPago.tarifa)+" por clase."; }
+  else if(t==="semana"){ ayuda = "Sugerencia: la tarifa semanal es "+dinero(empPago.tarifa)+"."; document.getElementById("p_monto").value = empPago.tarifa||""; }
+  else if(t==="mes"){ ayuda = "Sugerencia: el sueldo mensual es "+dinero(empPago.tarifa)+"."; document.getElementById("p_monto").value = empPago.tarifa||""; }
+  else if(t==="comision"){ ayuda = "Comisión: "+Number(empPago.tarifa||0)+"%. Captura el monto calculado."; }
+  document.getElementById("p_ayudaMonto").textContent = ayuda;
+  document.getElementById("modalPago").classList.remove("oculto");
+}
+function cerrarPago(){ document.getElementById("modalPago").classList.add("oculto"); empPago=null; }
+
+/* Auto-cálculo del monto como CONVENIENCIA (siempre editable). */
+function recalcularMonto(){
+  if(!empPago) return;
+  const monto = document.getElementById("p_monto");
+  if(monto.dataset.tocado) return; // si el usuario ya lo editó a mano, no lo pisamos
+  const t = empPago.tipo_pago;
+  const horas = Number(document.getElementById("p_horas").value||0);
+  const clases = Number(document.getElementById("p_clases").value||0);
+  if(t==="hora" && horas>0){ monto.value = (horas*Number(empPago.tarifa||0)).toFixed(2); }
+  else if(t==="clase" && clases>0){ monto.value = (clases*Number(empPago.tarifa||0)).toFixed(2); }
+}
+document.getElementById("p_horas").addEventListener("input", recalcularMonto);
+document.getElementById("p_clases").addEventListener("input", recalcularMonto);
+document.getElementById("p_monto").addEventListener("input", (e)=>{ e.target.dataset.tocado = e.target.value ? "1" : ""; });
+
+document.getElementById("formPago").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  if(!empPago){ return; }
+  const btn=document.getElementById("btnRegistrarPago");
+  btn.disabled=true; btn.textContent="Registrando...";
+  try{
+    // OJO: 'folio' (N-000001) y 'fecha' los pone la BD, NO se envían.
+    const horas  = document.getElementById("p_horas").value;
+    const clases = document.getElementById("p_clases").value;
+    const datos = {
+      empleado_id: empPago.id,
+      concepto: document.getElementById("p_concepto").value.trim() || "Sueldo",
+      periodo_inicio: document.getElementById("p_periodo_inicio").value || null,
+      periodo_fin: document.getElementById("p_periodo_fin").value || null,
+      horas:  horas!=="" ? Number(horas) : null,
+      clases: clases!=="" ? Number(clases) : null,
+      monto:  Number(document.getElementById("p_monto").value||0),
+      metodo: document.getElementById("p_metodo").value,
+      notas:  document.getElementById("p_notas").value.trim() || null
+    };
+    const { error } = await db.from("pagos_empleados").insert(datos);
+    if(error) throw error;
+    cerrarPago();
+    aviso("Pago registrado ✔");
+    await cargarNomina();
+  }catch(err){
+    aviso("Error: "+(err.message||"no se pudo registrar el pago"),"err");
+  }finally{
+    btn.disabled=false; btn.textContent="Registrar pago";
+  }
+});
+
+/* =====================================================================
+   VISTA: NÓMINA (HISTORIAL DE PAGOS)
+   ===================================================================== */
+async function cargarNomina(){
+  const tb = document.getElementById("tbodyNomina");
+  const divTotal = document.getElementById("nom_total");
+  tb.innerHTML = '<tr><td colspan="6" class="vacio">Cargando...</td></tr>';
+  divTotal.style.display = "none";
+
+  const desde = document.getElementById("nom_desde").value || primerDiaMesISO();
+  let hasta   = document.getElementById("nom_hasta").value || hoyISO();
+  // La fecha es timestamptz: para incluir todo el día "hasta", filtramos hasta el final de ese día.
+  const hastaFin = hasta + "T23:59:59";
+
+  const { data, error } = await db.from("pagos_empleados")
+    .select("*, empleados(nombre_completo,codigo)")
+    .gte("fecha", desde)
+    .lte("fecha", hastaFin)
+    .order("fecha", { ascending:false });
+
+  if(error){ tb.innerHTML = `<tr><td colspan="6" class="vacio">Error: ${error.message}</td></tr>`; return; }
+
+  const pagos = data||[];
+  if(!pagos.length){
+    tb.innerHTML = '<tr><td colspan="6" class="vacio">No hay pagos en este periodo. 🙂</td></tr>';
+    return;
+  }
+
+  let total = 0;
+  tb.innerHTML = pagos.map(p=>{
+    total += Number(p.monto||0);
+    const emp = p.empleados || {};
+    const nombre = emp.nombre_completo || "—";
+    const fecha = p.fecha ? new Date(p.fecha).toLocaleDateString("es-MX",{day:"2-digit",month:"2-digit",year:"numeric"}) : "—";
+    return `
+    <tr>
+      <td class="cod">${p.folio||""}</td>
+      <td style="color:var(--txt2);font-size:13px">${fecha}</td>
+      <td>${nombre}${emp.codigo?`<br><span class="cod" style="font-size:11px">${emp.codigo}</span>`:""}</td>
+      <td>${p.concepto||"—"}</td>
+      <td style="text-transform:capitalize">${p.metodo||"—"}</td>
+      <td><b style="color:var(--acc2)">${dinero(p.monto)}</b></td>
+    </tr>`;
+  }).join("");
+
+  divTotal.style.display = "block";
+  divTotal.innerHTML = `<div class="fila"><span>Total pagado en el periodo (${pagos.length} pago${pagos.length!==1?"s":""})</span><b>${dinero(total)}</b></div>`;
+}
+
+/* ---------- Arranque ---------- */
+actualizarLabelTarifa();
+if(SUPABASE_KEY==="PEGA_AQUI_TU_ANON_KEY"){
+  document.getElementById("loginError").textContent = "⚠ Falta pegar tu anon key en el código (línea de configuración).";
+}
+revisarSesion();
+</script>
+</body>
+</html>
