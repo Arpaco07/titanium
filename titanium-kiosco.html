@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Titanium · Kiosco de acceso</title>
+<meta name="theme-color" content="#0d0f14">
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  /* ====================================================================
+     TITANIUM · Kiosco de autoservicio (pantalla fija de entrada/salida)
+     Mismo tema oscuro tipo gym que el resto del sistema.
+     ==================================================================== */
+  :root{
+    --bg:#0d0f14; --bg2:#141821; --card:#1a1f2b; --card2:#20263485;
+    --line:#2a3141; --txt:#e8ecf3; --txt2:#9aa4b6; --txt3:#6b7488;
+    --acc:#ff7a1a; --acc2:#ffa04d; --ok:#2fd07a; --warn:#f7b731; --bad:#ff5964;
+    --radio:14px; --sombra:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 700px at 50% -10%, #1b2130 0%, var(--bg) 55%);
+    color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased; overflow:hidden;
+  }
+  .oculto{display:none !important}
+  button{font-family:inherit; cursor:pointer}
+  input{font-family:inherit}
+
+  /* ---- Botones base ---- */
+  .btn{
+    background:linear-gradient(135deg,var(--acc),#e05e00); color:#fff; border:none;
+    padding:14px 24px; border-radius:12px; font-size:16px; font-weight:700; letter-spacing:.3px;
+    box-shadow:0 6px 18px rgba(255,122,26,.35);
+  }
+  .btn.sec{background:var(--card2); color:var(--txt); box-shadow:none; border:1px solid var(--line)}
+
+  /* ---- Login (una sola vez en este dispositivo) ---- */
+  .login-wrap{min-height:100vh; display:grid; place-items:center; padding:20px}
+  .login{width:100%; max-width:380px; text-align:center; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:30px; box-shadow:var(--sombra)}
+  .login .logo{width:64px; height:64px; font-size:32px; margin:0 auto 18px; border-radius:16px; display:grid; place-items:center; background:linear-gradient(135deg,var(--acc),#c94e00); box-shadow:0 4px 14px rgba(255,122,26,.4)}
+  .login h1{letter-spacing:4px; font-weight:800; margin-bottom:6px}
+  .login h1 span{color:var(--acc)}
+  .login p{color:var(--txt3); font-size:13px; margin-bottom:24px}
+  .login .campo{text-align:left; margin-bottom:14px; display:flex; flex-direction:column; gap:6px}
+  .login label{font-size:12px; color:var(--txt2); font-weight:600}
+  .login input{background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:11px 13px; border-radius:10px; font-size:14px; outline:none; width:100%}
+  .login input:focus{border-color:var(--acc)}
+  .login .btn{width:100%; margin-top:6px}
+  .login .nota{color:var(--txt3); font-size:11px; margin-top:16px; line-height:1.5}
+
+  /* ---- Kiosco ---- */
+  #kiosco{height:100vh; display:flex; flex-direction:column}
+  .k-top{display:flex; align-items:center; justify-content:space-between; padding:16px 24px}
+  .k-marca{display:flex; align-items:center; gap:12px}
+  .k-logo{width:40px; height:40px; border-radius:10px; display:grid; place-items:center; background:linear-gradient(135deg,var(--acc),#c94e00); color:#fff; font-size:22px; box-shadow:0 4px 14px rgba(255,122,26,.4)}
+  .k-marca h1{font-size:19px; letter-spacing:3px; font-weight:800}
+  .k-marca span{color:var(--acc)}
+  .k-marca small{display:block; color:var(--txt3); letter-spacing:2px; font-size:10px; font-weight:600}
+  .k-aforo{color:var(--txt2); font-size:15px; font-weight:600}
+  .k-aforo b{color:var(--ok); font-size:22px; margin-left:6px}
+  .k-salir{background:transparent; color:var(--txt3); border:1px solid var(--line); padding:7px 12px; border-radius:9px; font-size:12px; margin-left:14px}
+
+  /* Zona central grande */
+  .k-centro{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; position:relative}
+
+  /* Estado de reposo (esperando escaneo) */
+  .k-reposo{display:flex; flex-direction:column; align-items:center; gap:20px}
+  .k-reposo .icono{font-size:80px; animation:pulso 2s ease-in-out infinite}
+  @keyframes pulso{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(1.08);opacity:1}}
+  .k-reposo h2{font-size:38px; font-weight:800; letter-spacing:1px}
+  .k-reposo p{color:var(--txt3); font-size:18px; max-width:520px}
+  /* input invisible que capta el escaneo de la pistola */
+  #inpEscaner{position:absolute; opacity:0; pointer-events:none; width:1px; height:1px}
+
+  /* Tarjeta de resultado (grande, se ve de lejos) */
+  .k-resultado{width:min(760px,92vw); border-radius:24px; padding:44px 30px; border:3px solid; animation:aparece .18s ease-out}
+  @keyframes aparece{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+  .k-resultado.ok{background:rgba(47,208,122,.10); border-color:var(--ok)}
+  .k-resultado.bad{background:rgba(255,89,100,.10); border-color:var(--bad)}
+  .k-resultado .emoji{font-size:76px; line-height:1}
+  .k-resultado .titulo{font-size:52px; font-weight:800; letter-spacing:1px; margin-top:8px}
+  .k-resultado.ok .titulo{color:var(--ok)}
+  .k-resultado.bad .titulo{color:var(--bad)}
+  .k-resultado .nombre{font-size:40px; font-weight:800; margin-top:14px}
+  .k-resultado .sub{font-size:20px; color:var(--txt2); margin-top:8px}
+  .k-resultado .motivo{font-size:30px; font-weight:700; color:var(--bad); margin-top:10px}
+  .k-chips{display:flex; gap:16px; justify-content:center; margin-top:22px; flex-wrap:wrap}
+  .k-chip{background:var(--card2); border:1px solid var(--line); border-radius:14px; padding:12px 22px; min-width:120px}
+  .k-chip .et{font-size:13px; color:var(--txt3); font-weight:600}
+  .k-chip .val{font-size:30px; font-weight:800; color:var(--acc2)}
+
+  .k-pie{text-align:center; color:var(--txt3); font-size:13px; padding:14px}
+
+  /* Aviso (toast) */
+  #aviso{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); padding:12px 20px; border-radius:12px; font-size:14px; font-weight:600; box-shadow:var(--sombra); z-index:90; opacity:0; transition:opacity .25s; pointer-events:none}
+  #aviso.show{opacity:1}
+  #aviso.ok{background:var(--ok); color:#04231a} #aviso.err{background:var(--bad); color:#2a0409}
+
+  @media(max-width:560px){
+    .k-reposo .icono{font-size:60px}
+    .k-reposo h2{font-size:28px}
+    .k-resultado .titulo{font-size:38px}
+    .k-resultado .nombre{font-size:30px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= LOGIN (una sola vez por dispositivo) ================= -->
+<div id="pantallaLogin" class="login-wrap">
+  <form class="login" id="formLogin">
+    <div class="logo">🏋️</div>
+    <h1>TITA<span>NIUM</span></h1>
+    <p>Kiosco de acceso · configuración</p>
+    <div class="campo">
+      <label>Correo</label>
+      <input type="email" id="loginEmail" required autocomplete="username" placeholder="tucorreo@ejemplo.com">
+    </div>
+    <div class="campo">
+      <label>Contraseña</label>
+      <input type="password" id="loginPass" required autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn" type="submit" id="btnLogin">Activar kiosco</button>
+    <p id="loginError" style="color:var(--bad); margin-top:14px; min-height:16px"></p>
+    <p class="nota">Solo se inicia sesión una vez en este dispositivo. Después queda fijo en la entrada; los socios escanean solos su QR.</p>
+  </form>
+</div>
+
+<!-- ================= KIOSCO ================= -->
+<div id="kiosco" class="oculto">
+  <div class="k-top">
+    <div class="k-marca">
+      <div class="k-logo">🏋️</div>
+      <div>
+        <h1>TITA<span>NIUM</span></h1>
+        <small>CONTROL DE ACCESO</small>
+      </div>
+    </div>
+    <div>
+      <span class="k-aforo">Dentro ahora:<b id="aforo">–</b></span>
+      <button class="k-salir" id="btnSalir" title="Cerrar el kiosco">Salir</button>
+    </div>
+  </div>
+
+  <div class="k-centro" id="centro">
+    <!-- input oculto que recibe lo que teclea la pistola QR -->
+    <input id="inpEscaner" autocomplete="off" autocapitalize="off" spellcheck="false">
+
+    <!-- Reposo -->
+    <div class="k-reposo" id="reposo">
+      <div class="icono">📷</div>
+      <h2>Escanea tu código</h2>
+      <p>Acerca el QR de tu celular al lector para registrar tu entrada o salida.</p>
+    </div>
+
+    <!-- Resultado (se llena por JS) -->
+    <div id="resultado" class="oculto"></div>
+  </div>
+
+  <div class="k-pie">Titanium · Bienvenido 💪</div>
+</div>
+
+<div id="aviso"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN — pega tu anon key igual que en las demás pantallas.
+   ===================================================================== */
+const SUPABASE_URL  = "https://qwdswodysasskchrgquz.supabase.co";
+const SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3ZHN3b2R5c2Fzc2tjaHJncXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MjQ3OTgsImV4cCI6MjEwNjMwMDc5OH0.1XFVf34Vr8PDIUkf78bOvhIqk4mTPKlO74farozVdjs";   // 👈 SOLO cambia esto
+
+const { createClient } = window.supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let procesando = false;
+let temporizador = null;   // para regresar a reposo tras mostrar resultado
+
+/* ---------- Utilidades ---------- */
+function aviso(msg, tipo="ok"){
+  const a=document.getElementById("aviso");
+  a.textContent=msg; a.className=tipo+" show";
+  setTimeout(()=>a.classList.remove("show"), 3000);
+}
+/* Beep con Web Audio (nunca rompe si el navegador no deja) */
+function beep(ok){
+  try{
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.connect(g); g.connect(ctx.destination);
+    o.type="sine"; o.frequency.value = ok ? 880 : 220;
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+0.35);
+    o.start(); o.stop(ctx.currentTime+0.36);
+  }catch(e){}
+}
+
+/* ---------- Autenticación (una vez) ---------- */
+document.getElementById("formLogin").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn=document.getElementById("btnLogin");
+  const err=document.getElementById("loginError");
+  err.textContent=""; btn.disabled=true; btn.textContent="Activando...";
+  const { error } = await db.auth.signInWithPassword({
+    email:document.getElementById("loginEmail").value.trim(),
+    password:document.getElementById("loginPass").value
+  });
+  btn.disabled=false; btn.textContent="Activar kiosco";
+  if(error){ err.textContent = "Correo o contraseña incorrectos."; }
+});
+
+document.getElementById("btnSalir").addEventListener("click", async ()=>{
+  if(confirm("¿Cerrar el kiosco y salir?")){ await db.auth.signOut(); location.reload(); }
+});
+
+async function revisarSesion(){
+  const { data:{ session } } = await db.auth.getSession();
+  if(session){ entrarKiosco(); } else { document.getElementById("pantallaLogin").classList.remove("oculto"); }
+}
+db.auth.onAuthStateChange((_e, session)=>{ if(session) entrarKiosco(); });
+
+function entrarKiosco(){
+  document.getElementById("pantallaLogin").classList.add("oculto");
+  document.getElementById("kiosco").classList.remove("oculto");
+  actualizarAforo();
+  enfocar();
+  // Mantiene el foco en el input oculto para que la pistola siempre "escriba" ahí
+  document.addEventListener("click", enfocar);
+  setInterval(enfocar, 1500);
+}
+function enfocar(){ const i=document.getElementById("inpEscaner"); if(i) i.focus(); }
+
+/* ---------- Lectura del escáner (la pistola teclea + Enter) ---------- */
+document.getElementById("inpEscaner").addEventListener("keydown", async (e)=>{
+  if(e.key!=="Enter") return;
+  e.preventDefault();
+  const val = e.target.value.trim();
+  e.target.value = "";
+  if(!val || procesando) return;
+  await validar(val);
+});
+
+async function validar(identificador){
+  procesando = true;
+  if(temporizador){ clearTimeout(temporizador); temporizador=null; }
+  try{
+    // El servidor decide solo si es entrada o salida (validar_acceso_auto)
+    const { data, error } = await db.rpc("validar_acceso_auto", { p_identificador: identificador });
+    if(error) throw error;
+    mostrarResultado(data);
+    beep(data && data.permitido);
+    actualizarAforo();
+  }catch(err){
+    aviso("Error: "+(err.message||"no se pudo validar"),"err");
+    mostrarResultado({ permitido:false, motivo:"Error de conexión" });
+    beep(false);
+  }finally{
+    procesando = false;
+    enfocar();
+    // Regresa a reposo tras 5 segundos, listo para el siguiente socio
+    temporizador = setTimeout(volverReposo, 5000);
+  }
+}
+
+/* ---------- Pintar resultado grande ---------- */
+function mostrarResultado(d){
+  const rep = document.getElementById("reposo");
+  const res = document.getElementById("resultado");
+  rep.classList.add("oculto");
+  res.classList.remove("oculto");
+
+  if(d && d.permitido){
+    const esSalida = (d.tipo === "salida");
+    const chips = [];
+    if(d.dias_restantes != null)    chips.push(`<div class="k-chip"><div class="et">Días</div><div class="val">${d.dias_restantes}</div></div>`);
+    if(d.visitas_restantes != null) chips.push(`<div class="k-chip"><div class="et">Visitas</div><div class="val">${d.visitas_restantes}</div></div>`);
+    if(d.horas_restantes != null)   chips.push(`<div class="k-chip"><div class="et">Horas</div><div class="val">${d.horas_restantes}</div></div>`);
+    res.className = "k-resultado ok";
+    res.innerHTML = `
+      <div class="emoji">${esSalida ? "👋" : "💪"}</div>
+      <div class="titulo">${esSalida ? "¡HASTA PRONTO!" : "¡ADELANTE!"}</div>
+      <div class="nombre">${d.nombre || ""}</div>
+      <div class="sub">${esSalida ? "Salida registrada" : (d.plan ? d.plan : "Acceso permitido")}</div>
+      ${!esSalida && chips.length ? `<div class="k-chips">${chips.join("")}</div>` : ""}`;
+  }else{
+    res.className = "k-resultado bad";
+    res.innerHTML = `
+      <div class="emoji">⛔</div>
+      <div class="titulo">ACCESO DENEGADO</div>
+      ${d && d.nombre ? `<div class="nombre">${d.nombre}</div>` : ""}
+      <div class="motivo">${(d && d.motivo) ? d.motivo : "No identificado"}</div>
+      <div class="sub">Pasa a recepción</div>`;
+  }
+}
+
+function volverReposo(){
+  document.getElementById("resultado").classList.add("oculto");
+  document.getElementById("reposo").classList.remove("oculto");
+  enfocar();
+}
+
+/* ---------- Aforo ---------- */
+async function actualizarAforo(){
+  try{
+    const { data, error } = await db.rpc("aforo_actual");
+    if(!error && data != null) document.getElementById("aforo").textContent = data;
+  }catch(e){}
+}
+
+/* ---------- Arranque ---------- */
+if(SUPABASE_KEY==="PEGA_AQUI_TU_ANON_KEY"){
+  document.getElementById("loginError").textContent = "⚠ Falta pegar tu anon key en el código (línea de configuración).";
+}
+revisarSesion();
+</script>
+</body>
+</html>
