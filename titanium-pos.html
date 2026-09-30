@@ -7,6 +7,7 @@
 
 <!-- Librerías: Supabase (base de datos). El POS no usa QR, pero se mantiene supabase-js igual que en socios.html -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="titanium-config.js"></script>
 
 <style>
   /* ====================================================================
@@ -361,8 +362,8 @@
    Supabase → Project Settings (engrane) → API → "Project API keys"
    → copia la que dice  anon  public  y pégala entre las comillas.
    ===================================================================== */
-const SUPABASE_URL  = "https://qwdswodysasskchrgquz.supabase.co";
-const SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3ZHN3b2R5c2Fzc2tjaHJncXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MjQ3OTgsImV4cCI6MjEwNjMwMDc5OH0.1XFVf34Vr8PDIUkf78bOvhIqk4mTPKlO74farozVdjs";   // 👈 SOLO cambia esto
+const SUPABASE_URL  = window.SUPABASE_URL || "https://qwdswodysasskchrgquz.supabase.co";
+const SUPABASE_KEY  = window.SUPABASE_KEY || "PEGA_AQUI_TU_ANON_KEY";
 
 const { createClient } = window.supabase;
 const db = createClient(SUPABASE_URL, SUPABASE_KEY);
