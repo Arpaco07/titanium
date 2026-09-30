@@ -216,6 +216,11 @@
             <input type="text" id="n_pin" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="Ej. 1234">
             <span class="ayuda">Respaldo por si no trae su QR. Puedes dejarlo vacío.</span>
           </div>
+          <div class="campo">
+            <label>Usuario para la app (opcional)</label>
+            <input type="text" id="n_usuario" placeholder="Ej. juanp" autocapitalize="off">
+            <span class="ayuda">Para que entre a su app más fácil. Si lo dejas vacío, usa su código. Él lo puede cambiar después.</span>
+          </div>
         </div>
 
         <div class="divisor"></div>
@@ -253,6 +258,13 @@
     <section id="vistaLista" class="oculto">
       <div class="barra">
         <input type="text" id="buscar" placeholder="🔍 Buscar por nombre o código...">
+        <select id="filtroEstado" style="background:var(--bg2);border:1px solid var(--line);color:var(--txt);padding:11px 14px;border-radius:10px;font-size:14px;outline:none">
+          <option value="todos">Todos</option>
+          <option value="activos">Activos</option>
+          <option value="porvencer">Por vencer (≤7 días)</option>
+          <option value="vencidos">Vencidos</option>
+          <option value="congelados">Congelados</option>
+        </select>
         <button class="btn sec chico" onclick="cargarSocios()">↻ Actualizar</button>
       </div>
       <div class="tabla-wrap">
@@ -447,6 +459,7 @@ document.getElementById("formNuevo").addEventListener("submit", async (e)=>{
       correo: document.getElementById("n_correo").value.trim() || null,
       fecha_nacimiento: document.getElementById("n_nacimiento").value || null,
       sexo: document.getElementById("n_sexo").value || null,
+      usuario: document.getElementById("n_usuario").value.trim().toLowerCase() || null,
       pin: pinAcceso
     }).select().single();
     if(e1) throw e1;
@@ -505,12 +518,13 @@ async function cargarSocios(){
   const { data, error } = await db.from("v_socios_estado").select("*").order("nombre_completo");
   if(error){ tb.innerHTML=`<tr><td colspan="6" class="vacio">Error: ${error.message}</td></tr>`; return; }
   SOCIOS = data||[];
-  pintarSocios(SOCIOS);
+  aplicarFiltros();
 }
 
 function estadoPill(s){
   if(s.estatus!=="activo") return '<span class="pill gris">Inactivo</span>';
   if(!s.membresia_id) return '<span class="pill gris">Sin paquete</span>';
+  if(s.estatus_membresia==="congelada") return '<span class="pill" style="background:rgba(77,159,255,.15);color:#4d9fff">Congelada</span>';
   // Por visitas / horas
   if(s.visitas_restantes!=null && s.dias_restantes==null){
     return s.visitas_restantes>0 ? `<span class="pill ok">${s.visitas_restantes} visitas</span>` : '<span class="pill bad">Sin visitas</span>';
@@ -539,17 +553,54 @@ function pintarSocios(lista){
       <td>${s.plan||"—"}</td>
       <td style="color:var(--txt2);font-size:13px">${vigenciaTxt(s)}</td>
       <td>${estadoPill(s)}</td>
-      <td><button class="btn sec chico" onclick='abrirVender(${JSON.stringify({id:s.id,nombre:s.nombre_completo})})'>Vender paquete</button></td>
+      <td style="white-space:nowrap">
+        <button class="btn sec chico" onclick='abrirVender(${JSON.stringify({id:s.id,nombre:s.nombre_completo})})'>Vender</button>
+        ${s.estatus_membresia==="congelada"
+          ? `<button class="btn sec chico" onclick="reactivarMemb('${s.id}')">Reactivar</button>`
+          : (s.membresia_id ? `<button class="btn sec chico" onclick="congelarMemb('${s.id}')">Congelar</button>` : "")}
+      </td>
     </tr>`).join("");
 }
 
-document.getElementById("buscar").addEventListener("input", (e)=>{
-  const q=e.target.value.toLowerCase().trim();
-  pintarSocios(SOCIOS.filter(s=>
+/* Filtro combinado: texto + estado */
+function aplicarFiltros(){
+  const q=(document.getElementById("buscar").value||"").toLowerCase().trim();
+  const f=document.getElementById("filtroEstado").value;
+  let lista=SOCIOS.filter(s=>
     (s.nombre_completo||"").toLowerCase().includes(q) ||
-    (s.codigo||"").toLowerCase().includes(q)
-  ));
-});
+    (s.codigo||"").toLowerCase().includes(q) ||
+    (s.usuario||"").toLowerCase().includes(q));
+  lista=lista.filter(s=>{
+    const cong=s.estatus_membresia==="congelada";
+    const d=s.dias_restantes, vis=s.visitas_restantes;
+    const vencido=(!cong && s.membresia_id && ((d!=null && d<0) || (vis!=null && d==null && vis<=0)));
+    const porvencer=(!cong && s.membresia_id && d!=null && d>=0 && d<=7);
+    const activo=(s.membresia_id && !cong && !vencido);
+    switch(f){
+      case "activos": return activo;
+      case "porvencer": return porvencer;
+      case "vencidos": return vencido;
+      case "congelados": return cong;
+      default: return true;
+    }
+  });
+  pintarSocios(lista);
+}
+document.getElementById("buscar").addEventListener("input", aplicarFiltros);
+document.getElementById("filtroEstado").addEventListener("change", aplicarFiltros);
+
+/* Congelar / Reactivar membresía */
+async function congelarMemb(id){
+  if(!confirm("¿Congelar la membresía de este socio? Se pausa su vigencia hasta reactivarla.")) return;
+  const { data, error } = await db.rpc("congelar_membresia",{p_socio_id:id});
+  if(error||!data||!data.ok){ aviso((data&&data.error)||(error&&error.message)||"No se pudo congelar","err"); return; }
+  aviso("Membresía congelada ✔"); cargarSocios();
+}
+async function reactivarMemb(id){
+  const { data, error } = await db.rpc("reactivar_membresia",{p_socio_id:id});
+  if(error||!data||!data.ok){ aviso((data&&data.error)||(error&&error.message)||"No se pudo reactivar","err"); return; }
+  aviso("Reactivada. Se sumaron "+(data.dias_sumados||0)+" día(s) de vigencia ✔"); cargarSocios();
+}
 
 /* ---------- Modal: vender paquete a socio existente ---------- */
 function abrirVender(socio){
@@ -568,8 +619,8 @@ document.getElementById("formVender").addEventListener("submit", async (e)=>{
   const btn=document.getElementById("btnVender");
   btn.disabled=true; btn.textContent="Cobrando...";
   try{
-    // Al vender un paquete nuevo, la membresía activa anterior se marca como vencida
-    await db.from("membresias").update({estatus:"vencida"}).eq("socio_id",socioVenta.id).eq("estatus","activa");
+    // Al vender un paquete nuevo, la membresía anterior (activa o congelada) se marca como vencida
+    await db.from("membresias").update({estatus:"vencida"}).eq("socio_id",socioVenta.id).in("estatus",["activa","congelada"]);
 
     const m = calcularMembresia(plan);
     const { data:memb, error:e1 } = await db.from("membresias").insert({

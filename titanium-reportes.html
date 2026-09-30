@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Titanium · Reportes</title>
+
+<!-- Librerías: Supabase (base de datos), config con la anon key, y Chart.js (gráficas) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="titanium-config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<style>
+  /* ====================================================================
+     TITANIUM · Tema oscuro tipo gym (metálico + acento ámbar)
+     ==================================================================== */
+  :root{
+    --bg:#0d0f14; --bg2:#141821; --card:#1a1f2b; --card2:#20263485;
+    --line:#2a3141; --txt:#e8ecf3; --txt2:#9aa4b6; --txt3:#6b7488;
+    --acc:#ff7a1a; --acc2:#ffa04d; --ok:#2fd07a; --warn:#f7b731; --bad:#ff5964;
+    --radio:14px; --sombra:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%, #1b2130 0%, var(--bg) 55%);
+    color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .oculto{display:none !important}
+  button{font-family:inherit; cursor:pointer}
+  input,select{font-family:inherit}
+
+  /* ---- Encabezado ---- */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; background:#0b0d12cc; backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20;
+  }
+  .marca{display:flex; align-items:center; gap:12px}
+  .logo{
+    width:38px; height:38px; border-radius:10px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--acc),#c94e00); color:#fff; font-size:20px;
+    box-shadow:0 4px 14px rgba(255,122,26,.4);
+  }
+  .marca h1{font-size:18px; letter-spacing:3px; font-weight:800}
+  .marca span{color:var(--acc)}
+  .marca small{display:block; color:var(--txt3); letter-spacing:2px; font-size:10px; font-weight:600}
+  .btn-salir{background:transparent; color:var(--txt2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; font-size:13px}
+  .btn-salir:hover{color:var(--txt); border-color:var(--txt3)}
+
+  /* ---- Pestañas ---- */
+  nav.tabs{display:flex; gap:6px; padding:14px 20px 0; max-width:1100px; margin:0 auto; width:100%}
+  nav.tabs button{
+    background:transparent; color:var(--txt2); border:none; padding:12px 18px;
+    border-radius:12px 12px 0 0; font-size:14px; font-weight:600; position:relative;
+  }
+  nav.tabs button.on{color:var(--acc); background:var(--card)}
+  nav.tabs button.on::after{content:""; position:absolute; left:18px; right:18px; bottom:-1px; height:2px; background:var(--acc)}
+
+  main{max-width:1100px; margin:0 auto; padding:20px}
+
+  /* ---- Tarjetas / formularios ---- */
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radio); padding:22px; box-shadow:var(--sombra)}
+  .card h2{font-size:16px; margin-bottom:4px; display:flex; align-items:center; gap:8px}
+  .card .sub{color:var(--txt3); font-size:13px; margin-bottom:18px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px}
+  .campo{display:flex; flex-direction:column; gap:6px}
+  .campo label{font-size:12px; color:var(--txt2); font-weight:600; letter-spacing:.3px}
+  .campo label b{color:var(--acc)}
+  .campo input,.campo select{
+    background:var(--bg2); border:1px solid var(--line); color:var(--txt);
+    padding:11px 13px; border-radius:10px; font-size:14px; outline:none; width:100%;
+  }
+  .campo input:focus,.campo select:focus{border-color:var(--acc); box-shadow:0 0 0 3px rgba(255,122,26,.15)}
+  .campo .ayuda{font-size:11px; color:var(--txt3)}
+
+  .divisor{height:1px; background:var(--line); margin:22px 0}
+
+  .btn{
+    background:linear-gradient(135deg,var(--acc),#e05e00); color:#fff; border:none;
+    padding:13px 22px; border-radius:11px; font-size:15px; font-weight:700; letter-spacing:.3px;
+    box-shadow:0 6px 18px rgba(255,122,26,.35); transition:transform .05s;
+  }
+  .btn:hover{transform:translateY(-1px)} .btn:active{transform:translateY(0)}
+  .btn:disabled{opacity:.5; cursor:not-allowed; transform:none}
+  .btn.sec{background:var(--card2); color:var(--txt); box-shadow:none; border:1px solid var(--line)}
+  .btn.chico{padding:8px 14px; font-size:13px; border-radius:9px}
+
+  .resumen{background:var(--card2); border:1px dashed var(--line); border-radius:12px; padding:14px 16px; margin-top:4px}
+  .resumen .fila{display:flex; justify-content:space-between; font-size:14px; padding:4px 0}
+  .resumen .fila b{color:var(--acc2); font-size:18px}
+
+  /* ---- Buscador + tabla ---- */
+  .barra{display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap}
+  .barra input{flex:1; min-width:200px; background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:11px 14px; border-radius:10px; font-size:14px; outline:none}
+  .tabla-wrap{overflow-x:auto; border-radius:12px; border:1px solid var(--line)}
+  table{width:100%; border-collapse:collapse; font-size:14px; min-width:480px}
+  th{text-align:left; padding:12px 14px; color:var(--txt3); font-size:11px; letter-spacing:.5px; text-transform:uppercase; background:var(--bg2); border-bottom:1px solid var(--line)}
+  td{padding:12px 14px; border-bottom:1px solid var(--line); color:var(--txt)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#ffffff05}
+  .cod{font-family:ui-monospace,monospace; color:var(--acc2); font-size:13px}
+  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700}
+  .pill.ok{background:rgba(47,208,122,.15); color:var(--ok)}
+  .pill.warn{background:rgba(247,183,49,.15); color:var(--warn)}
+  .pill.bad{background:rgba(255,89,100,.15); color:var(--bad)}
+  .pill.gris{background:#ffffff10; color:var(--txt2)}
+  .vacio{text-align:center; padding:40px; color:var(--txt3)}
+
+  /* ---- Login ---- */
+  .login-wrap{min-height:100vh; display:grid; place-items:center; padding:20px}
+  .login{width:100%; max-width:380px; text-align:center}
+  .login .logo{width:64px; height:64px; font-size:32px; margin:0 auto 18px; border-radius:16px}
+  .login h1{letter-spacing:4px; font-weight:800; margin-bottom:6px}
+  .login h1 span{color:var(--acc)}
+  .login p{color:var(--txt3); font-size:13px; margin-bottom:26px}
+  .login .campo{text-align:left; margin-bottom:14px}
+  .login .btn{width:100%; margin-top:6px}
+
+  /* ---- Aviso (toast) ---- */
+  #aviso{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:14px 22px; border-radius:12px; font-size:14px; font-weight:600; box-shadow:var(--sombra); z-index:90; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; max-width:90%}
+  #aviso.show{opacity:1; transform:translateX(-50%) translateY(-4px)}
+  #aviso.ok{background:var(--ok); color:#04231a} #aviso.err{background:var(--bad); color:#2a0409}
+
+  /* ==== NUEVAS CLASES: dashboard de reportes ==== */
+  /* Barra selectora de mes */
+  .barra-mes{display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:18px}
+  .barra-mes .campo{min-width:200px}
+
+  /* Rejilla de KPIs — colapsa a 2 y 1 columna en móvil */
+  .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px}
+  .kpi{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radio);
+    padding:18px 20px; box-shadow:var(--sombra); position:relative; overflow:hidden;
+  }
+  .kpi::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--acc)}
+  .kpi .etq{font-size:12px; color:var(--txt2); font-weight:600; letter-spacing:.3px; margin-bottom:8px; display:flex; align-items:center; gap:6px}
+  .kpi .val{font-size:26px; font-weight:800; letter-spacing:.3px; line-height:1.1}
+  .kpi .pie{font-size:11px; color:var(--txt3); margin-top:6px}
+  /* KPI destacado: ingresos totales del mes */
+  .kpi.hero{grid-column:span 2; background:linear-gradient(135deg,#241a10,#1a1f2b)}
+  .kpi.hero::before{width:5px; background:linear-gradient(var(--acc),#c94e00)}
+  .kpi.hero .val{font-size:38px; color:var(--acc2)}
+  .kpi.hero .etq{font-size:13px; color:var(--acc2)}
+  /* Acentos de color por tipo de KPI */
+  .kpi.k-ok::before{background:var(--ok)}
+  .kpi.k-warn::before{background:var(--warn)}
+  .kpi.k-bad::before{background:var(--bad)}
+  .kpi.k-azul::before{background:#4d9fff}
+
+  /* Rejilla de gráficas — 2 columnas, apiladas en móvil */
+  .graficas{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:18px}
+  .grafica-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radio); padding:18px 20px; box-shadow:var(--sombra)}
+  .grafica-card h3{font-size:14px; margin-bottom:14px; display:flex; align-items:center; gap:8px; font-weight:700}
+  .grafica-box{position:relative; height:260px}
+  .grafica-card.ancho{grid-column:span 2}
+
+  @media(max-width:900px){
+    .kpis{grid-template-columns:repeat(2,1fr)}
+    .kpi.hero{grid-column:span 2}
+  }
+  @media(max-width:640px){
+    .graficas{grid-template-columns:1fr}
+    .grafica-card.ancho{grid-column:span 1}
+  }
+  @media(max-width:480px){
+    .kpis{grid-template-columns:1fr}
+    .kpi.hero{grid-column:span 1}
+  }
+
+  @media(max-width:560px){
+    nav.tabs button{padding:11px 12px; font-size:13px}
+    main{padding:14px}
+    .card{padding:16px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= PANTALLA DE LOGIN ================= -->
+<div id="pantallaLogin" class="login-wrap">
+  <form class="login card" id="formLogin">
+    <div class="logo">🏋️</div>
+    <h1>TITA<span>NIUM</span></h1>
+    <p>Panel de administración</p>
+    <div class="campo">
+      <label>Correo</label>
+      <input type="email" id="loginEmail" required autocomplete="username" placeholder="tucorreo@ejemplo.com">
+    </div>
+    <div class="campo">
+      <label>Contraseña</label>
+      <input type="password" id="loginPass" required autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn" type="submit" id="btnLogin">Entrar</button>
+    <p id="loginError" style="color:var(--bad); margin-top:14px; min-height:16px"></p>
+  </form>
+</div>
+
+<!-- ================= APLICACIÓN ================= -->
+<div id="app" class="oculto">
+  <header>
+    <div class="marca">
+      <div class="logo">🏋️</div>
+      <div>
+        <h1>TITA<span>NIUM</span></h1>
+        <small>REPORTES</small>
+      </div>
+    </div>
+    <button class="btn-salir" id="btnSalir">Cerrar sesión</button>
+  </header>
+
+  <main>
+    <!-- ---------- Selector de mes ---------- -->
+    <section class="card" style="margin-bottom:18px">
+      <h2>📊 Dashboard del dueño</h2>
+      <p class="sub">Resumen del negocio por mes: ingresos, socios, productos y horas pico.</p>
+      <div class="barra-mes">
+        <div class="campo">
+          <label>Mes a consultar</label>
+          <input type="month" id="mes">
+        </div>
+        <button class="btn" id="btnVer">Ver</button>
+        <button class="btn sec chico" id="btnActualizar">↻ Actualizar</button>
+      </div>
+    </section>
+
+    <!-- ---------- Fila de KPIs ---------- -->
+    <div class="kpis" id="kpis">
+      <div class="kpi hero"><div class="etq">💰 Ingresos del mes</div><div class="val" id="kpiIngresos">—</div><div class="pie">Membresías + productos</div></div>
+      <div class="kpi"><div class="etq">🎟️ Membresías</div><div class="val" id="kpiMemb">—</div><div class="pie">Ingresos por paquetes</div></div>
+      <div class="kpi"><div class="etq">🛒 Productos</div><div class="val" id="kpiProd">—</div><div class="pie">Ingresos por ventas</div></div>
+      <div class="kpi k-ok"><div class="etq">✅ Socios activos</div><div class="val" id="kpiActivos">—</div><div class="pie">Con membresía vigente</div></div>
+      <div class="kpi k-warn"><div class="etq">⏳ Por vencer</div><div class="val" id="kpiPorVencer">—</div><div class="pie">Vencen en 7 días o menos</div></div>
+      <div class="kpi k-bad"><div class="etq">⛔ Vencidos</div><div class="val" id="kpiVencidos">—</div><div class="pie">Membresía caducada</div></div>
+      <div class="kpi k-azul"><div class="etq">🆕 Altas del mes</div><div class="val" id="kpiAltas">—</div><div class="pie">Socios nuevos registrados</div></div>
+    </div>
+
+    <!-- ---------- Gráficas ---------- -->
+    <div class="graficas">
+      <div class="grafica-card ancho">
+        <h3>📈 Ingresos por día</h3>
+        <div class="grafica-box"><canvas id="grafDias"></canvas></div>
+      </div>
+      <div class="grafica-card">
+        <h3>💳 Ingresos por método de pago</h3>
+        <div class="grafica-box"><canvas id="grafMetodo"></canvas></div>
+      </div>
+      <div class="grafica-card">
+        <h3>👥 Estado de socios</h3>
+        <div class="grafica-box"><canvas id="grafSocios"></canvas></div>
+      </div>
+      <div class="grafica-card ancho">
+        <h3>🕐 Horas pico (entradas al gym)</h3>
+        <div class="grafica-box"><canvas id="grafHoras"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ---------- Tabla top productos ---------- -->
+    <section class="card">
+      <h2>🏆 Top productos del mes</h2>
+      <p class="sub">Los 10 productos más vendidos por unidades.</p>
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Producto</th><th>Unidades</th><th>Importe</th></tr>
+          </thead>
+          <tbody id="tbodyTop">
+            <tr><td colspan="4" class="vacio">Elige un mes y presiona Ver.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="aviso"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN — Conexión a tu Supabase
+   ---------------------------------------------------------------------
+   La URL ya está puesta. La anon key la toma de titanium-config.js.
+   Si no usas ese archivo, pega tu "anon public key" entre las comillas.
+   ===================================================================== */
+const SUPABASE_URL  = window.SUPABASE_URL || "https://qwdswodysasskchrgquz.supabase.co";
+const SUPABASE_KEY  = window.SUPABASE_KEY || "PEGA_AQUI_TU_ANON_KEY";
+
+const { createClient } = window.supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* Colores del tema para las gráficas */
+const COLORES = {
+  acc:"#ff7a1a", ok:"#2fd07a", warn:"#f7b731", bad:"#ff5964", azul:"#4d9fff"
+};
+const TICK  = "#9aa4b6";                 // color de textos de ejes
+const GRID  = "rgba(255,255,255,.06)";   // color de las líneas de la cuadrícula
+
+/* Guardamos las instancias de las gráficas para poder destruirlas
+   antes de redibujar (así no se encima una gráfica sobre otra al cambiar de mes) */
+let charts = { dias:null, metodo:null, socios:null, horas:null };
+
+/* ---------- Utilidades ---------- */
+function hoyISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function dinero(n){ return "$"+Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function aviso(msg, tipo="ok"){
+  const a=document.getElementById("aviso");
+  a.textContent=msg; a.className=tipo+" show";
+  setTimeout(()=>a.classList.remove("show"), 3200);
+}
+
+/* ---------- Autenticación ---------- */
+document.getElementById("formLogin").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn=document.getElementById("btnLogin");
+  const err=document.getElementById("loginError");
+  err.textContent=""; btn.disabled=true; btn.textContent="Entrando...";
+  const { error } = await db.auth.signInWithPassword({
+    email:document.getElementById("loginEmail").value.trim(),
+    password:document.getElementById("loginPass").value
+  });
+  btn.disabled=false; btn.textContent="Entrar";
+  if(error){ err.textContent = "Correo o contraseña incorrectos."; }
+});
+
+document.getElementById("btnSalir").addEventListener("click", async ()=>{
+  await db.auth.signOut(); location.reload();
+});
+
+async function revisarSesion(){
+  const { data:{ session } } = await db.auth.getSession();
+  if(session){ entrarApp(); } else { document.getElementById("pantallaLogin").classList.remove("oculto"); }
+}
+db.auth.onAuthStateChange((_e, session)=>{ if(session) entrarApp(); });
+
+async function entrarApp(){
+  document.getElementById("pantallaLogin").classList.add("oculto");
+  document.getElementById("app").classList.remove("oculto");
+  // El selector de mes arranca en el mes actual
+  document.getElementById("mes").value = hoyISO().slice(0,7);
+  await cargarReportes();
+}
+
+/* ---------- Botones ---------- */
+document.getElementById("btnVer").addEventListener("click", cargarReportes);
+document.getElementById("btnActualizar").addEventListener("click", cargarReportes);
+
+/* =====================================================================
+   RANGO DEL MES
+   Devuelve { desde, hasta, primerDia, finDia, anio, mes }
+   'desde' y 'hasta' son cadenas ISO para filtrar timestamptz.
+   ===================================================================== */
+function rangoMes(valorMes){
+  // valorMes viene como "2026-09"; si viene vacío, usamos el mes actual
+  const base = valorMes || hoyISO().slice(0,7);
+  const [anio, mes] = base.split("-").map(Number);   // mes = 1..12
+  const finDia = new Date(anio, mes, 0).getDate();    // último día del mes (day 0 del mes siguiente)
+  const mm = String(mes).padStart(2,"0");
+  const desde = `${anio}-${mm}-01T00:00:00`;
+  const hasta = `${anio}-${mm}-${String(finDia).padStart(2,"0")}T23:59:59.999`;
+  return { desde, hasta, primerDia:1, finDia, anio, mes };
+}
+
+/* =====================================================================
+   CARGA PRINCIPAL — trae todo lo del mes y arma el dashboard
+   ===================================================================== */
+async function cargarReportes(){
+  const R = rangoMes(document.getElementById("mes").value);
+  const btn = document.getElementById("btnVer");
+  btn.disabled = true; btn.textContent = "Cargando...";
+
+  try{
+    // Traemos en paralelo todo lo necesario para el mes elegido
+    const [
+      rSocios, rPagos, rVentas, rAltas, rAccesos
+    ] = await Promise.all([
+      // Estado de socios (una fila por socio) — no depende del mes
+      db.from("v_socios_estado").select("estatus,membresia_id,plan,plan_tipo,fecha_fin,dias_restantes,visitas_restantes,horas_restantes"),
+      // Pagos de membresías del mes
+      db.from("pagos").select("monto,metodo,concepto,fecha").gte("fecha",R.desde).lte("fecha",R.hasta),
+      // Ventas de productos del mes
+      db.from("ventas").select("id,total,metodo_pago,fecha").gte("fecha",R.desde).lte("fecha",R.hasta),
+      // Altas de socios (para contar los nuevos del mes)
+      db.from("socios").select("fecha_alta").gte("fecha_alta",R.desde).lte("fecha_alta",R.hasta),
+      // Accesos (entradas) del mes — para horas pico
+      db.from("accesos").select("momento,tipo,resultado").gte("momento",R.desde).lte("momento",R.hasta)
+    ]);
+
+    // Revisamos errores de cada consulta
+    for(const r of [rSocios,rPagos,rVentas,rAltas,rAccesos]){
+      if(r.error) throw r.error;
+    }
+
+    const socios  = rSocios.data  || [];
+    const pagos   = rPagos.data   || [];
+    const ventas  = rVentas.data  || [];
+    const altas   = rAltas.data   || [];
+    const accesos = rAccesos.data || [];
+
+    // ----- Detalle de ventas del mes (para top productos) -----
+    // Traemos las líneas de venta cruzando por los IDs de las ventas del mes.
+    let detalle = [];
+    const idsVenta = ventas.map(v=>v.id).filter(x=>x!=null);
+    if(idsVenta.length){
+      const rDet = await db.from("ventas_detalle")
+        .select("nombre_producto,cantidad,importe,venta_id")
+        .in("venta_id", idsVenta);
+      if(rDet.error) throw rDet.error;
+      detalle = rDet.data || [];
+    }
+
+    // ----- Cálculos y pintado -----
+    pintarKPIs(R, socios, pagos, ventas, altas);
+    dibujarIngresosPorDia(R, pagos, ventas);
+    dibujarMetodoPago(pagos, ventas);
+    dibujarEstadoSocios(socios);
+    dibujarHorasPico(accesos);
+    pintarTopProductos(detalle);
+
+  }catch(error){
+    aviso(error.message || "No se pudieron cargar los reportes","err");
+  }finally{
+    btn.disabled = false; btn.textContent = "Ver";
+  }
+}
+
+/* =====================================================================
+   HELPERS DE CLASIFICACIÓN DE SOCIOS
+   ===================================================================== */
+function esActivo(s){
+  // Activo = tiene membresía y no está vencido por días.
+  if(!s.membresia_id) return false;
+  if(s.estatus && s.estatus!=="activo") return false;
+  if(s.dias_restantes!=null && s.dias_restantes<0) return false;
+  return true;
+}
+function esPorVencer(s){
+  return s.membresia_id && s.dias_restantes!=null && s.dias_restantes>=0 && s.dias_restantes<=7;
+}
+function esVencido(s){
+  return s.membresia_id && s.dias_restantes!=null && s.dias_restantes<0;
+}
+/* Normaliza el nombre del método de pago a: efectivo / tarjeta / transferencia / otro */
+function normMetodo(m){
+  const t = (m||"").toString().toLowerCase().trim();
+  if(t.includes("efec")) return "efectivo";
+  if(t.includes("tarj")) return "tarjeta";
+  if(t.includes("trans")) return "transferencia";
+  return t || "otro";
+}
+
+/* =====================================================================
+   KPIs
+   ===================================================================== */
+function pintarKPIs(R, socios, pagos, ventas, altas){
+  const totMemb  = pagos.reduce((a,p)=>a+Number(p.monto||0),0);
+  const totProd  = ventas.reduce((a,v)=>a+Number(v.total||0),0);
+  const totMes   = totMemb + totProd;
+
+  const activos   = socios.filter(esActivo).length;
+  const porVencer = socios.filter(esPorVencer).length;
+  const vencidos  = socios.filter(esVencido).length;
+
+  document.getElementById("kpiIngresos").textContent  = dinero(totMes);
+  document.getElementById("kpiMemb").textContent      = dinero(totMemb);
+  document.getElementById("kpiProd").textContent      = dinero(totProd);
+  document.getElementById("kpiActivos").textContent   = activos;
+  document.getElementById("kpiPorVencer").textContent = porVencer;
+  document.getElementById("kpiVencidos").textContent  = vencidos;
+  document.getElementById("kpiAltas").textContent     = altas.length;
+}
+
+/* =====================================================================
+   OPCIONES BASE PARA GRÁFICAS (legibles en fondo oscuro)
+   ===================================================================== */
+function ejesOscuros(){
+  return {
+    x:{ ticks:{ color:TICK, font:{size:11} }, grid:{ color:GRID } },
+    y:{ ticks:{ color:TICK, font:{size:11} }, grid:{ color:GRID }, beginAtZero:true }
+  };
+}
+function leyendaOscura(){
+  return { labels:{ color:TICK, font:{size:12}, padding:14, usePointStyle:true } };
+}
+
+/* =====================================================================
+   GRÁFICA A — Ingresos por día del mes (barras)
+   ===================================================================== */
+function dibujarIngresosPorDia(R, pagos, ventas){
+  // Acumulamos ingresos por número de día (1..finDia)
+  const porDia = new Array(R.finDia+1).fill(0);   // índice 0 sin usar
+  const acumula = (fecha, monto)=>{
+    if(!fecha) return;
+    const d = new Date(fecha).getDate();
+    if(d>=1 && d<=R.finDia) porDia[d] += Number(monto||0);
+  };
+  pagos.forEach(p=>acumula(p.fecha, p.monto));
+  ventas.forEach(v=>acumula(v.fecha, v.total));
+
+  const labels = [];
+  const datos  = [];
+  for(let d=1; d<=R.finDia; d++){ labels.push(d); datos.push(porDia[d]); }
+
+  if(charts.dias) charts.dias.destroy();
+  charts.dias = new Chart(document.getElementById("grafDias"), {
+    type:"bar",
+    data:{ labels, datasets:[{ label:"Ingresos", data:datos, backgroundColor:COLORES.acc, borderRadius:4, maxBarThickness:26 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ display:false },
+        tooltip:{ callbacks:{ label:(c)=> " "+dinero(c.parsed.y) } }
+      },
+      scales: ejesOscuros()
+    }
+  });
+}
+
+/* =====================================================================
+   GRÁFICA B — Ingresos por método de pago (dona)
+   ===================================================================== */
+function dibujarMetodoPago(pagos, ventas){
+  const acc = { efectivo:0, tarjeta:0, transferencia:0, otro:0 };
+  pagos.forEach(p=>{ acc[normMetodo(p.metodo)]      = (acc[normMetodo(p.metodo)]||0)      + Number(p.monto||0); });
+  ventas.forEach(v=>{ acc[normMetodo(v.metodo_pago)] = (acc[normMetodo(v.metodo_pago)]||0) + Number(v.total||0); });
+
+  // Solo mostramos las categorías con monto (evita rebanadas en cero)
+  const orden = [
+    {k:"efectivo",      lbl:"Efectivo",      col:COLORES.ok},
+    {k:"tarjeta",       lbl:"Tarjeta",       col:COLORES.azul},
+    {k:"transferencia", lbl:"Transferencia", col:COLORES.warn},
+    {k:"otro",          lbl:"Otro",          col:COLORES.bad}
+  ];
+  const labels=[], datos=[], cols=[];
+  orden.forEach(o=>{ if(acc[o.k]>0){ labels.push(o.lbl); datos.push(acc[o.k]); cols.push(o.col); } });
+
+  if(charts.metodo) charts.metodo.destroy();
+  charts.metodo = new Chart(document.getElementById("grafMetodo"), {
+    type:"doughnut",
+    data:{ labels: labels.length?labels:["Sin datos"], datasets:[{ data: datos.length?datos:[1], backgroundColor: cols.length?cols:["#2a3141"], borderColor:"#141821", borderWidth:2 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:"58%",
+      plugins:{
+        legend:{ position:"bottom", ...leyendaOscura() },
+        tooltip:{ callbacks:{ label:(c)=> datos.length? (" "+c.label+": "+dinero(c.parsed)) : " Sin datos" } }
+      }
+    }
+  });
+}
+
+/* =====================================================================
+   GRÁFICA C — Estado de socios (dona)
+   ===================================================================== */
+function dibujarEstadoSocios(socios){
+  const activos   = socios.filter(esActivo).length;
+  const porVencer = socios.filter(esPorVencer).length;
+  const vencidos  = socios.filter(esVencido).length;
+  const total = activos+porVencer+vencidos;
+
+  if(charts.socios) charts.socios.destroy();
+  charts.socios = new Chart(document.getElementById("grafSocios"), {
+    type:"doughnut",
+    data:{
+      labels:["Activos","Por vencer","Vencidos"],
+      datasets:[{ data: total? [activos,porVencer,vencidos] : [1,0,0],
+        backgroundColor:[COLORES.ok, COLORES.warn, COLORES.bad], borderColor:"#141821", borderWidth:2 }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:"58%",
+      plugins:{
+        legend:{ position:"bottom", ...leyendaOscura() },
+        tooltip:{ callbacks:{ label:(c)=> total? (" "+c.label+": "+c.parsed) : " Sin socios" } }
+      }
+    }
+  });
+}
+
+/* =====================================================================
+   GRÁFICA D — Horas pico (barras): entradas permitidas por hora del día
+   ===================================================================== */
+function dibujarHorasPico(accesos){
+  const porHora = new Array(24).fill(0);
+  accesos.forEach(a=>{
+    // Solo contamos entradas permitidas (tipo entrada / resultado permitido)
+    const tipoOk = a.tipo==null || String(a.tipo).toLowerCase().includes("entra");
+    const resOk  = a.resultado==null ||
+                   String(a.resultado).toLowerCase().includes("permit") ||
+                   String(a.resultado).toLowerCase().includes("ok") ||
+                   String(a.resultado).toLowerCase().includes("exito");
+    if(!a.momento || !tipoOk || !resOk) return;
+    const h = new Date(a.momento).getHours();
+    if(h>=0 && h<=23) porHora[h]++;
+  });
+
+  const labels = [];
+  for(let h=0; h<24; h++){ labels.push(String(h).padStart(2,"0")+"h"); }
+
+  if(charts.horas) charts.horas.destroy();
+  charts.horas = new Chart(document.getElementById("grafHoras"), {
+    type:"bar",
+    data:{ labels, datasets:[{ label:"Entradas", data:porHora, backgroundColor:COLORES.azul, borderRadius:4, maxBarThickness:22 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{ display:false },
+        tooltip:{ callbacks:{ label:(c)=> " "+c.parsed.y+" entrada(s)" } }
+      },
+      scales: ejesOscuros()
+    }
+  });
+}
+
+/* =====================================================================
+   TABLA — Top productos del mes (por unidades, top 10)
+   ===================================================================== */
+function pintarTopProductos(detalle){
+  const tb = document.getElementById("tbodyTop");
+  if(!detalle.length){
+    tb.innerHTML = '<tr><td colspan="4" class="vacio">Sin ventas de productos este mes 🫧</td></tr>';
+    return;
+  }
+  // Agrupamos por nombre de producto
+  const mapa = {};
+  detalle.forEach(d=>{
+    const nombre = d.nombre_producto || "(sin nombre)";
+    if(!mapa[nombre]) mapa[nombre] = { unidades:0, importe:0 };
+    mapa[nombre].unidades += Number(d.cantidad||0);
+    mapa[nombre].importe  += Number(d.importe||0);
+  });
+  const filas = Object.entries(mapa)
+    .map(([nombre,v])=>({ nombre, ...v }))
+    .sort((a,b)=> b.unidades - a.unidades)
+    .slice(0,10);
+
+  tb.innerHTML = filas.map((f,i)=>`
+    <tr>
+      <td class="cod">${i+1}</td>
+      <td>${f.nombre}</td>
+      <td><b>${f.unidades}</b></td>
+      <td style="color:var(--acc2)">${dinero(f.importe)}</td>
+    </tr>`).join("");
+}
+
+/* ---------- Arranque ---------- */
+if(SUPABASE_KEY==="PEGA_AQUI_TU_ANON_KEY"){
+  document.getElementById("loginError").textContent = "⚠ Falta pegar tu anon key en el código (línea de configuración).";
+}
+revisarSesion();
+</script>
+</body>
+</html>
