@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Titanium · Punto de venta</title>
+
+<!-- Librerías: Supabase (base de datos). El POS no usa QR, pero se mantiene supabase-js igual que en socios.html -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  /* ====================================================================
+     TITANIUM · Tema oscuro tipo gym (metálico + acento ámbar)
+     (Reutilizado EXACTO de titanium-socios.html para consistencia)
+     ==================================================================== */
+  :root{
+    --bg:#0d0f14; --bg2:#141821; --card:#1a1f2b; --card2:#20263485;
+    --line:#2a3141; --txt:#e8ecf3; --txt2:#9aa4b6; --txt3:#6b7488;
+    --acc:#ff7a1a; --acc2:#ffa04d; --ok:#2fd07a; --warn:#f7b731; --bad:#ff5964;
+    --radio:14px; --sombra:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%, #1b2130 0%, var(--bg) 55%);
+    color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .oculto{display:none !important}
+  button{font-family:inherit; cursor:pointer}
+  input,select{font-family:inherit}
+
+  /* ---- Encabezado ---- */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; background:#0b0d12cc; backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20;
+  }
+  .marca{display:flex; align-items:center; gap:12px}
+  .logo{
+    width:38px; height:38px; border-radius:10px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--acc),#c94e00); color:#fff; font-size:20px;
+    box-shadow:0 4px 14px rgba(255,122,26,.4);
+  }
+  .marca h1{font-size:18px; letter-spacing:3px; font-weight:800}
+  .marca span{color:var(--acc)}
+  .marca small{display:block; color:var(--txt3); letter-spacing:2px; font-size:10px; font-weight:600}
+  .btn-salir{background:transparent; color:var(--txt2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; font-size:13px}
+  .btn-salir:hover{color:var(--txt); border-color:var(--txt3)}
+
+  /* ---- Pestañas ---- */
+  nav.tabs{display:flex; gap:6px; padding:14px 20px 0; max-width:1100px; margin:0 auto; width:100%}
+  nav.tabs button{
+    background:transparent; color:var(--txt2); border:none; padding:12px 18px;
+    border-radius:12px 12px 0 0; font-size:14px; font-weight:600; position:relative;
+  }
+  nav.tabs button.on{color:var(--acc); background:var(--card)}
+  nav.tabs button.on::after{content:""; position:absolute; left:18px; right:18px; bottom:-1px; height:2px; background:var(--acc)}
+
+  main{max-width:1100px; margin:0 auto; padding:20px}
+
+  /* ---- Tarjetas / formularios ---- */
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radio); padding:22px; box-shadow:var(--sombra)}
+  .card h2{font-size:16px; margin-bottom:4px; display:flex; align-items:center; gap:8px}
+  .card .sub{color:var(--txt3); font-size:13px; margin-bottom:18px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px}
+  .campo{display:flex; flex-direction:column; gap:6px}
+  .campo label{font-size:12px; color:var(--txt2); font-weight:600; letter-spacing:.3px}
+  .campo label b{color:var(--acc)}
+  .campo input,.campo select{
+    background:var(--bg2); border:1px solid var(--line); color:var(--txt);
+    padding:11px 13px; border-radius:10px; font-size:14px; outline:none; width:100%;
+  }
+  .campo input:focus,.campo select:focus{border-color:var(--acc); box-shadow:0 0 0 3px rgba(255,122,26,.15)}
+  .campo .ayuda{font-size:11px; color:var(--txt3)}
+
+  .divisor{height:1px; background:var(--line); margin:22px 0}
+
+  .btn{
+    background:linear-gradient(135deg,var(--acc),#e05e00); color:#fff; border:none;
+    padding:13px 22px; border-radius:11px; font-size:15px; font-weight:700; letter-spacing:.3px;
+    box-shadow:0 6px 18px rgba(255,122,26,.35); transition:transform .05s;
+  }
+  .btn:hover{transform:translateY(-1px)} .btn:active{transform:translateY(0)}
+  .btn:disabled{opacity:.5; cursor:not-allowed; transform:none}
+  .btn.sec{background:var(--card2); color:var(--txt); box-shadow:none; border:1px solid var(--line)}
+  .btn.chico{padding:8px 14px; font-size:13px; border-radius:9px}
+
+  .resumen{background:var(--card2); border:1px dashed var(--line); border-radius:12px; padding:14px 16px; margin-top:4px}
+  .resumen .fila{display:flex; justify-content:space-between; font-size:14px; padding:4px 0}
+  .resumen .fila b{color:var(--acc2); font-size:18px}
+
+  /* ---- Buscador + tabla ---- */
+  .barra{display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap}
+  .barra input{flex:1; min-width:200px; background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:11px 14px; border-radius:10px; font-size:14px; outline:none}
+  .tabla-wrap{overflow-x:auto; border-radius:12px; border:1px solid var(--line)}
+  table{width:100%; border-collapse:collapse; font-size:14px; min-width:640px}
+  th{text-align:left; padding:12px 14px; color:var(--txt3); font-size:11px; letter-spacing:.5px; text-transform:uppercase; background:var(--bg2); border-bottom:1px solid var(--line)}
+  td{padding:12px 14px; border-bottom:1px solid var(--line); color:var(--txt)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#ffffff05}
+  .cod{font-family:ui-monospace,monospace; color:var(--acc2); font-size:13px}
+  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700}
+  .pill.ok{background:rgba(47,208,122,.15); color:var(--ok)}
+  .pill.warn{background:rgba(247,183,49,.15); color:var(--warn)}
+  .pill.bad{background:rgba(255,89,100,.15); color:var(--bad)}
+  .pill.gris{background:#ffffff10; color:var(--txt2)}
+  .vacio{text-align:center; padding:40px; color:var(--txt3)}
+
+  /* ---- Login ---- */
+  .login-wrap{min-height:100vh; display:grid; place-items:center; padding:20px}
+  .login{width:100%; max-width:380px; text-align:center}
+  .login .logo{width:64px; height:64px; font-size:32px; margin:0 auto 18px; border-radius:16px}
+  .login h1{letter-spacing:4px; font-weight:800; margin-bottom:6px}
+  .login h1 span{color:var(--acc)}
+  .login p{color:var(--txt3); font-size:13px; margin-bottom:26px}
+  .login .campo{text-align:left; margin-bottom:14px}
+  .login .btn{width:100%; margin-top:6px}
+
+  /* ---- Modal ---- */
+  .modal-bg{position:fixed; inset:0; background:#000a; display:grid; place-items:center; padding:20px; z-index:50}
+  .modal{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px; width:100%; max-width:460px; box-shadow:var(--sombra); max-height:90vh; overflow:auto}
+  .modal h2{margin-bottom:4px} .modal .cerrar{float:right; background:none; border:none; color:var(--txt3); font-size:22px; line-height:1}
+
+  /* ---- Aviso (toast) ---- */
+  #aviso{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:14px 22px; border-radius:12px; font-size:14px; font-weight:600; box-shadow:var(--sombra); z-index:90; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; max-width:90%}
+  #aviso.show{opacity:1; transform:translateX(-50%) translateY(-4px)}
+  #aviso.ok{background:var(--ok); color:#04231a} #aviso.err{background:var(--bad); color:#2a0409}
+
+  /* ---- POS: escáner + ticket (estilos propios sobre el mismo tema) ---- */
+  .pos-grid{display:grid; grid-template-columns:1.4fr 1fr; gap:20px; align-items:start}
+  .escaner{
+    display:flex; align-items:center; gap:12px; background:var(--bg2);
+    border:2px solid var(--acc); border-radius:14px; padding:6px 6px 6px 16px;
+    box-shadow:0 0 0 3px rgba(255,122,26,.12);
+  }
+  .escaner .icono{font-size:24px}
+  .escaner input{
+    flex:1; background:transparent; border:none; color:var(--txt);
+    padding:14px 6px; font-size:18px; outline:none; letter-spacing:.5px;
+  }
+  .buscador-nombre{margin-top:14px}
+  .link-buscar{background:none; border:none; color:var(--acc2); font-size:13px; font-weight:600; padding:0; text-decoration:underline; text-underline-offset:3px}
+  .lista-busqueda{margin-top:12px; border:1px solid var(--line); border-radius:12px; overflow:hidden; max-height:260px; overflow-y:auto}
+  .lista-busqueda .item{display:flex; justify-content:space-between; align-items:center; gap:10px; padding:11px 14px; border-bottom:1px solid var(--line); cursor:pointer}
+  .lista-busqueda .item:last-child{border-bottom:none}
+  .lista-busqueda .item:hover{background:#ffffff08}
+  .lista-busqueda .item .np{font-size:14px}
+  .lista-busqueda .item .np small{display:block; color:var(--txt3); font-size:11px}
+  .lista-busqueda .item .pr{color:var(--acc2); font-weight:700; font-size:14px; white-space:nowrap}
+
+  /* Ticket */
+  .ticket .lineas{display:flex; flex-direction:column; gap:8px}
+  .ticket .linea{display:grid; grid-template-columns:1fr auto; gap:6px 12px; background:var(--bg2); border:1px solid var(--line); border-radius:11px; padding:10px 12px}
+  .ticket .linea .nom{font-size:14px; font-weight:600}
+  .ticket .linea .quitar{background:none; border:none; color:var(--bad); font-size:20px; line-height:1; padding:0 4px}
+  .ticket .linea .fila2{grid-column:1 / -1; display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .cant{display:flex; align-items:center; gap:6px}
+  .cant button{width:30px; height:30px; border-radius:8px; border:1px solid var(--line); background:var(--card2); color:var(--txt); font-size:16px; font-weight:700; display:grid; place-items:center}
+  .cant button:hover{border-color:var(--acc); color:var(--acc)}
+  .cant input{width:52px; text-align:center; background:var(--bg); border:1px solid var(--line); color:var(--txt); border-radius:8px; padding:6px; font-size:14px; outline:none}
+  .ticket .pu{color:var(--txt2); font-size:13px}
+  .ticket .imp{color:var(--acc2); font-weight:700; font-size:15px; min-width:80px; text-align:right}
+  .totales{margin-top:16px}
+  .totales .fila{display:flex; justify-content:space-between; align-items:center; font-size:14px; padding:6px 0}
+  .totales .fila.total{border-top:1px solid var(--line); margin-top:6px; padding-top:12px}
+  .totales .fila.total span:first-child{font-size:15px; font-weight:700}
+  .totales .fila.total b{color:var(--acc2); font-size:28px}
+  .desc-input{width:120px; background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:8px 10px; border-radius:9px; font-size:14px; outline:none; text-align:right}
+  .desc-input:focus{border-color:var(--acc)}
+
+  @media(max-width:860px){
+    .pos-grid{grid-template-columns:1fr}
+  }
+  @media(max-width:560px){
+    nav.tabs button{padding:11px 12px; font-size:13px}
+    main{padding:14px}
+    .card{padding:16px}
+    .escaner input{font-size:16px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= PANTALLA DE LOGIN ================= -->
+<div id="pantallaLogin" class="login-wrap">
+  <form class="login card" id="formLogin">
+    <div class="logo">🏋️</div>
+    <h1>TITA<span>NIUM</span></h1>
+    <p>Punto de venta</p>
+    <div class="campo">
+      <label>Correo</label>
+      <input type="email" id="loginEmail" required autocomplete="username" placeholder="tucorreo@ejemplo.com">
+    </div>
+    <div class="campo">
+      <label>Contraseña</label>
+      <input type="password" id="loginPass" required autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn" type="submit" id="btnLogin">Entrar</button>
+    <p id="loginError" style="color:var(--bad); margin-top:14px; min-height:16px"></p>
+  </form>
+</div>
+
+<!-- ================= APLICACIÓN ================= -->
+<div id="app" class="oculto">
+  <header>
+    <div class="marca">
+      <div class="logo">🏋️</div>
+      <div>
+        <h1>TITA<span>NIUM</span></h1>
+        <small>PUNTO DE VENTA</small>
+      </div>
+    </div>
+    <button class="btn-salir" id="btnSalir">Cerrar sesión</button>
+  </header>
+
+  <nav class="tabs">
+    <button id="tabVender" class="on" onclick="mostrarVista('vender')">🛒 Vender</button>
+    <button id="tabProductos" onclick="mostrarVista('productos')">📦 Productos</button>
+  </nav>
+
+  <main>
+    <!-- ---------- VISTA: VENDER (POS) ---------- -->
+    <section id="vistaVender" class="pos-grid">
+      <!-- Columna izquierda: escáner + catálogo -->
+      <div class="card">
+        <h2>🛒 Escanea o teclea el código</h2>
+        <p class="sub">Pasa el producto por la pistola o teclea su código y presiona Enter.</p>
+
+        <div class="escaner">
+          <span class="icono">📷</span>
+          <input type="text" id="inputCodigo" autocomplete="off" autofocus
+                 placeholder="Escanea o teclea el código de barras">
+        </div>
+
+        <div class="buscador-nombre">
+          <button type="button" class="link-buscar" id="linkBuscar">🔍 Buscar por nombre</button>
+          <div id="boxBuscar" class="oculto" style="margin-top:12px">
+            <input type="text" id="inputBuscarNombre" class="desc-input" style="width:100%; text-align:left; padding:11px 14px"
+                   placeholder="Escribe el nombre del producto...">
+            <div id="listaBusqueda" class="lista-busqueda oculto"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Columna derecha: ticket -->
+      <div class="card ticket">
+        <h2>🧾 Ticket</h2>
+        <p class="sub">Productos de esta venta.</p>
+
+        <div id="ticketLineas" class="lineas">
+          <div class="vacio">Aún no hay productos. Escanea el primero 🛒</div>
+        </div>
+
+        <div class="totales">
+          <div class="fila">
+            <span>Subtotal</span>
+            <span id="txtSubtotal">$0.00</span>
+          </div>
+          <div class="fila">
+            <span>Descuento</span>
+            <input type="number" id="inputDescuento" class="desc-input" step="0.01" min="0" placeholder="0.00" value="">
+          </div>
+          <div class="fila total">
+            <span>TOTAL</span>
+            <b id="txtTotal">$0.00</b>
+          </div>
+        </div>
+
+        <div class="campo" style="margin-top:16px">
+          <label>Método de pago</label>
+          <select id="selMetodo">
+            <option value="efectivo">Efectivo</option>
+            <option value="tarjeta">Tarjeta</option>
+            <option value="transferencia">Transferencia</option>
+          </select>
+        </div>
+
+        <button class="btn" id="btnCobrar" style="width:100%; margin-top:16px">Cobrar</button>
+      </div>
+    </section>
+
+    <!-- ---------- VISTA: PRODUCTOS (inventario) ---------- -->
+    <section id="vistaProductos" class="oculto">
+      <div class="card" style="margin-bottom:20px">
+        <h2 id="tituloForm">➕ Nuevo producto</h2>
+        <p class="sub">Da de alta o edita un producto del inventario.</p>
+
+        <form id="formProducto">
+          <input type="hidden" id="p_id" value="">
+          <div class="grid">
+            <div class="campo">
+              <label>Código de barras</label>
+              <input type="text" id="p_codigo" autocomplete="off" placeholder="Ej. 7501234567890">
+              <span class="ayuda">Puedes escanearlo aquí con la pistola.</span>
+            </div>
+            <div class="campo">
+              <label>Nombre <b>*</b></label>
+              <input type="text" id="p_nombre" required placeholder="Ej. Proteína Whey 1kg">
+            </div>
+            <div class="campo">
+              <label>Categoría</label>
+              <input type="text" id="p_categoria" placeholder="Ej. Suplementos">
+            </div>
+            <div class="campo">
+              <label>Precio de venta <b>*</b></label>
+              <input type="number" id="p_precio" required step="0.01" min="0" placeholder="0.00">
+            </div>
+            <div class="campo">
+              <label>Costo</label>
+              <input type="number" id="p_costo" step="0.01" min="0" placeholder="0.00">
+            </div>
+            <div class="campo">
+              <label>Stock (existencia)</label>
+              <input type="number" id="p_stock" step="1" min="0" placeholder="0">
+            </div>
+            <div class="campo">
+              <label>Stock mínimo</label>
+              <input type="number" id="p_stock_min" step="1" min="0" placeholder="0">
+              <span class="ayuda">Avisa cuando la existencia llegue a este número.</span>
+            </div>
+            <div class="campo">
+              <label>Caducidad</label>
+              <input type="date" id="p_caducidad">
+            </div>
+          </div>
+
+          <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap">
+            <button class="btn" type="submit" id="btnGuardarProd">Guardar producto</button>
+            <button class="btn sec" type="button" id="btnCancelarEdicion">Cancelar edición</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="barra">
+        <input type="text" id="buscarProd" placeholder="🔍 Buscar por nombre o código...">
+        <button class="btn sec chico" onclick="cargarProductos()">↻ Actualizar</button>
+      </div>
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="tbodyProductos">
+            <tr><td colspan="6" class="vacio">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="aviso"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN — Conexión a tu Supabase
+   ---------------------------------------------------------------------
+   La URL ya está puesta. Solo falta pegar tu "anon public key":
+   Supabase → Project Settings (engrane) → API → "Project API keys"
+   → copia la que dice  anon  public  y pégala entre las comillas.
+   ===================================================================== */
+const SUPABASE_URL  = "https://qwdswodysasskchrgquz.supabase.co";
+const SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3ZHN3b2R5c2Fzc2tjaHJncXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MjQ3OTgsImV4cCI6MjEwNjMwMDc5OH0.1XFVf34Vr8PDIUkf78bOvhIqk4mTPKlO74farozVdjs";   // 👈 SOLO cambia esto
+
+const { createClient } = window.supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let PRODUCTOS = [];   // catálogo activo cargado desde la BD (para POS y buscador)
+let TICKET = [];      // líneas de la venta actual: {producto_id, codigo, nombre, precio, stock, cantidad}
+
+/* ---------- Utilidades ---------- */
+function hoyISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function dinero(n){ return "$"+Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function aviso(msg, tipo="ok"){
+  const a=document.getElementById("aviso");
+  a.textContent=msg; a.className=tipo+" show";
+  setTimeout(()=>a.classList.remove("show"), 3200);
+}
+
+/* ---------- Autenticación ---------- */
+document.getElementById("formLogin").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn=document.getElementById("btnLogin");
+  const err=document.getElementById("loginError");
+  err.textContent=""; btn.disabled=true; btn.textContent="Entrando...";
+  const { error } = await db.auth.signInWithPassword({
+    email:document.getElementById("loginEmail").value.trim(),
+    password:document.getElementById("loginPass").value
+  });
+  btn.disabled=false; btn.textContent="Entrar";
+  if(error){ err.textContent = "Correo o contraseña incorrectos."; }
+});
+
+document.getElementById("btnSalir").addEventListener("click", async ()=>{
+  await db.auth.signOut(); location.reload();
+});
+
+async function revisarSesion(){
+  const { data:{ session } } = await db.auth.getSession();
+  if(session){ entrarApp(); } else { document.getElementById("pantallaLogin").classList.remove("oculto"); }
+}
+db.auth.onAuthStateChange((_e, session)=>{ if(session) entrarApp(); });
+
+async function entrarApp(){
+  document.getElementById("pantallaLogin").classList.add("oculto");
+  document.getElementById("app").classList.remove("oculto");
+  await cargarProductos();
+  enfocarEscaner();
+}
+
+/* ---------- Navegación entre vistas ---------- */
+function mostrarVista(v){
+  document.getElementById("vistaVender").classList.toggle("oculto", v!=="vender");
+  document.getElementById("vistaProductos").classList.toggle("oculto", v!=="productos");
+  document.getElementById("tabVender").classList.toggle("on", v==="vender");
+  document.getElementById("tabProductos").classList.toggle("on", v==="productos");
+  if(v==="vender") enfocarEscaner();
+  if(v==="productos") cargarProductos();
+}
+
+/* =====================================================================
+   VENDER (Punto de venta)
+   ===================================================================== */
+
+/* Recupera el foco en el input del escáner (la pistola teclea + Enter) */
+function enfocarEscaner(){
+  const inp=document.getElementById("inputCodigo");
+  // Solo si estamos en la vista de venta y no hay un modal/otro campo activo
+  if(!document.getElementById("vistaVender").classList.contains("oculto")){
+    setTimeout(()=>inp.focus(), 50);
+  }
+}
+
+/* Al escanear/teclear un código y presionar Enter */
+document.getElementById("inputCodigo").addEventListener("keydown", async (e)=>{
+  if(e.key!=="Enter") return;
+  e.preventDefault();
+  const valor = e.target.value.trim();
+  e.target.value="";
+  if(!valor){ enfocarEscaner(); return; }
+  try{
+    const { data, error } = await db.from("productos").select("*")
+      .eq("codigo_barras", valor).eq("activo", true).maybeSingle();
+    if(error) throw error;
+    if(!data){ aviso("Producto no encontrado","err"); enfocarEscaner(); return; }
+    agregarAlTicket(data);
+  }catch(err){
+    aviso(err.message,"err");
+  }
+  enfocarEscaner();
+});
+
+/* Agrega un producto al ticket (si ya está, suma 1) */
+function agregarAlTicket(prod){
+  const existente = TICKET.find(l=>l.producto_id===prod.id);
+  if(existente){
+    existente.cantidad += 1;
+  }else{
+    TICKET.push({
+      producto_id: prod.id,
+      codigo: prod.codigo_barras || "",
+      nombre: prod.nombre,
+      precio: Number(prod.precio||0),
+      stock: Number(prod.stock||0),
+      cantidad: 1
+    });
+  }
+  pintarTicket();
+}
+
+/* Cambia la cantidad de una línea (delta +1/-1 o valor absoluto) */
+function cambiarCantidad(idx, delta, absoluto){
+  const l=TICKET[idx]; if(!l) return;
+  if(absoluto!=null){
+    l.cantidad = Math.max(1, Math.floor(Number(absoluto)||1));
+  }else{
+    l.cantidad = Math.max(1, l.cantidad + delta);
+  }
+  pintarTicket();
+}
+
+/* Quita una línea del ticket */
+function quitarLinea(idx){
+  TICKET.splice(idx,1);
+  pintarTicket();
+  enfocarEscaner();
+}
+
+/* Calcula subtotal / descuento / total */
+function calcularTotales(){
+  const subtotal = TICKET.reduce((s,l)=> s + l.precio*l.cantidad, 0);
+  let descuento = Number(document.getElementById("inputDescuento").value||0);
+  if(descuento<0) descuento=0;
+  if(descuento>subtotal) descuento=subtotal;
+  const total = Math.max(0, subtotal - descuento);
+  return { subtotal, descuento, total };
+}
+
+/* Dibuja el ticket completo */
+function pintarTicket(){
+  const cont=document.getElementById("ticketLineas");
+  if(!TICKET.length){
+    cont.innerHTML='<div class="vacio">Aún no hay productos. Escanea el primero 🛒</div>';
+  }else{
+    cont.innerHTML = TICKET.map((l,i)=>`
+      <div class="linea">
+        <div class="nom">${l.nombre}</div>
+        <button class="quitar" title="Quitar" onclick="quitarLinea(${i})">×</button>
+        <div class="fila2">
+          <div class="cant">
+            <button onclick="cambiarCantidad(${i},-1)">−</button>
+            <input type="number" min="1" value="${l.cantidad}"
+                   onchange="cambiarCantidad(${i},null,this.value)">
+            <button onclick="cambiarCantidad(${i},1)">+</button>
+          </div>
+          <span class="pu">${dinero(l.precio)} c/u</span>
+          <span class="imp">${dinero(l.precio*l.cantidad)}</span>
+        </div>
+      </div>`).join("");
+  }
+  const t=calcularTotales();
+  document.getElementById("txtSubtotal").textContent = dinero(t.subtotal);
+  document.getElementById("txtTotal").textContent = dinero(t.total);
+}
+
+document.getElementById("inputDescuento").addEventListener("input", pintarTicket);
+
+/* ---------- Buscar por nombre (POS) ---------- */
+document.getElementById("linkBuscar").addEventListener("click", ()=>{
+  const box=document.getElementById("boxBuscar");
+  box.classList.toggle("oculto");
+  if(!box.classList.contains("oculto")){
+    document.getElementById("inputBuscarNombre").focus();
+  }else{
+    document.getElementById("listaBusqueda").classList.add("oculto");
+    enfocarEscaner();
+  }
+});
+
+document.getElementById("inputBuscarNombre").addEventListener("input", (e)=>{
+  const q=e.target.value.toLowerCase().trim();
+  const lista=document.getElementById("listaBusqueda");
+  if(!q){ lista.classList.add("oculto"); lista.innerHTML=""; return; }
+  const res=PRODUCTOS.filter(p=>(p.nombre||"").toLowerCase().includes(q)).slice(0,20);
+  if(!res.length){
+    lista.classList.remove("oculto");
+    lista.innerHTML='<div class="item"><span class="np" style="color:var(--txt3)">Sin coincidencias</span></div>';
+    return;
+  }
+  lista.classList.remove("oculto");
+  lista.innerHTML = res.map(p=>`
+    <div class="item" onclick="agregarDesdeBusqueda('${p.id}')">
+      <span class="np">${p.nombre}<small>${p.codigo_barras||"sin código"}</small></span>
+      <span class="pr">${dinero(p.precio)}</span>
+    </div>`).join("");
+});
+
+/* Agrega desde la lista de búsqueda por nombre */
+function agregarDesdeBusqueda(id){
+  const prod=PRODUCTOS.find(p=>p.id===id);
+  if(!prod){ aviso("Producto no encontrado","err"); return; }
+  agregarAlTicket(prod);
+  // Limpia el buscador y vuelve el foco al escáner
+  document.getElementById("inputBuscarNombre").value="";
+  document.getElementById("listaBusqueda").classList.add("oculto");
+  document.getElementById("boxBuscar").classList.add("oculto");
+  enfocarEscaner();
+}
+
+/* ---------- Cobrar (registra venta + detalle + descuenta stock + movimientos) ---------- */
+document.getElementById("btnCobrar").addEventListener("click", async ()=>{
+  if(!TICKET.length){ aviso("El ticket está vacío.","err"); return; }
+  const btn=document.getElementById("btnCobrar");
+  btn.disabled=true; btn.textContent="Cobrando...";
+  const t=calcularTotales();
+  try{
+    // 1) Cabecera de la venta (folio y fecha los pone la BD sola)
+    const { data:venta, error:e1 } = await db.from("ventas").insert({
+      subtotal: t.subtotal,
+      descuento: t.descuento,
+      total: t.total,
+      metodo_pago: document.getElementById("selMetodo").value
+    }).select().single();
+    if(e1) throw e1;
+
+    // 2) Detalle: una fila por línea del ticket
+    const detalle = TICKET.map(l=>({
+      venta_id: venta.id,
+      producto_id: l.producto_id,
+      nombre_producto: l.nombre,
+      cantidad: l.cantidad,
+      precio_unitario: l.precio,
+      importe: l.precio*l.cantidad
+    }));
+    const { error:e2 } = await db.from("ventas_detalle").insert(detalle);
+    if(e2) throw e2;
+
+    // 3) Descuenta stock y registra movimiento de inventario por cada línea
+    for(const l of TICKET){
+      const nuevo_stock = Number(l.stock||0) - l.cantidad;
+      const { error:e3 } = await db.from("productos").update({ stock: nuevo_stock }).eq("id", l.producto_id);
+      if(e3) throw e3;
+      const { error:e4 } = await db.from("movimientos_inventario").insert({
+        producto_id: l.producto_id,
+        tipo: "venta",
+        cantidad: l.cantidad,
+        stock_resultante: nuevo_stock,
+        venta_id: venta.id,
+        referencia: venta.folio
+      });
+      if(e4) throw e4;
+    }
+
+    aviso("Venta cobrada ✔  Folio "+(venta.folio||"—")+" · "+dinero(t.total));
+    // Limpia el ticket y refresca catálogo (para el stock actualizado)
+    TICKET=[];
+    document.getElementById("inputDescuento").value="";
+    pintarTicket();
+    await cargarProductos();
+    enfocarEscaner();
+  }catch(err){
+    aviso(err.message,"err");
+  }finally{
+    btn.disabled=false; btn.textContent="Cobrar";
+  }
+});
+
+/* =====================================================================
+   PRODUCTOS (inventario)
+   ===================================================================== */
+
+/* Carga el catálogo de productos activos (para POS y para la tabla) */
+async function cargarProductos(){
+  const tb=document.getElementById("tbodyProductos");
+  tb.innerHTML='<tr><td colspan="6" class="vacio">Cargando...</td></tr>';
+  const { data, error } = await db.from("productos").select("*").eq("activo",true).order("nombre");
+  if(error){
+    tb.innerHTML=`<tr><td colspan="6" class="vacio">Error: ${error.message}</td></tr>`;
+    aviso(error.message,"err");
+    return;
+  }
+  PRODUCTOS = data||[];
+  pintarProductos(PRODUCTOS);
+}
+
+/* Dibuja la tabla de productos */
+function pintarProductos(lista){
+  const tb=document.getElementById("tbodyProductos");
+  if(!lista.length){ tb.innerHTML='<tr><td colspan="6" class="vacio">Aún no hay productos. Da de alta el primero 📦</td></tr>'; return; }
+  tb.innerHTML = lista.map(p=>{
+    const bajo = Number(p.stock||0) <= Number(p.stock_minimo||0);
+    const pill = bajo
+      ? `<span class="pill bad">${Number(p.stock||0)}</span>`
+      : `<span class="pill ok">${Number(p.stock||0)}</span>`;
+    return `
+    <tr>
+      <td class="cod">${p.codigo_barras||"—"}</td>
+      <td>${p.nombre}</td>
+      <td style="color:var(--txt2)">${p.categoria||"—"}</td>
+      <td>${dinero(p.precio)}</td>
+      <td>${pill}</td>
+      <td><button class="btn sec chico" onclick='editarProducto(${JSON.stringify(p.id)})'>Editar</button></td>
+    </tr>`;
+  }).join("");
+}
+
+/* Buscador de productos (filtra en memoria por nombre o código) */
+document.getElementById("buscarProd").addEventListener("input", (e)=>{
+  const q=e.target.value.toLowerCase().trim();
+  pintarProductos(PRODUCTOS.filter(p=>
+    (p.nombre||"").toLowerCase().includes(q) ||
+    (p.codigo_barras||"").toLowerCase().includes(q)
+  ));
+});
+
+/* Carga un producto en el formulario para editarlo */
+function editarProducto(id){
+  const p=PRODUCTOS.find(x=>x.id===id);
+  if(!p){ aviso("Producto no encontrado","err"); return; }
+  document.getElementById("p_id").value = p.id;
+  document.getElementById("p_codigo").value = p.codigo_barras||"";
+  document.getElementById("p_nombre").value = p.nombre||"";
+  document.getElementById("p_categoria").value = p.categoria||"";
+  document.getElementById("p_precio").value = p.precio!=null ? p.precio : "";
+  document.getElementById("p_costo").value = p.costo!=null ? p.costo : "";
+  document.getElementById("p_stock").value = p.stock!=null ? p.stock : "";
+  document.getElementById("p_stock_min").value = p.stock_minimo!=null ? p.stock_minimo : "";
+  document.getElementById("p_caducidad").value = p.caducidad||"";
+  document.getElementById("tituloForm").textContent = "✏️ Editar producto";
+  document.getElementById("btnGuardarProd").textContent = "Actualizar producto";
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+/* Limpia el formulario y sale del modo edición */
+function limpiarFormProducto(){
+  document.getElementById("formProducto").reset();
+  document.getElementById("p_id").value = "";
+  document.getElementById("tituloForm").textContent = "➕ Nuevo producto";
+  document.getElementById("btnGuardarProd").textContent = "Guardar producto";
+}
+document.getElementById("btnCancelarEdicion").addEventListener("click", limpiarFormProducto);
+
+/* Guardar producto: si hay id → update; si no → insert */
+document.getElementById("formProducto").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn=document.getElementById("btnGuardarProd");
+  btn.disabled=true; const textoOrig=btn.textContent; btn.textContent="Guardando...";
+
+  // Construye el registro. Los numéricos vacíos se guardan como null.
+  const num = (id)=>{ const v=document.getElementById(id).value.trim(); return v==="" ? null : Number(v); };
+  const registro = {
+    codigo_barras: document.getElementById("p_codigo").value.trim() || null,
+    nombre: document.getElementById("p_nombre").value.trim(),
+    categoria: document.getElementById("p_categoria").value.trim() || null,
+    precio: num("p_precio"),
+    costo: num("p_costo"),
+    stock: num("p_stock"),
+    stock_minimo: num("p_stock_min"),
+    caducidad: document.getElementById("p_caducidad").value || null,
+    activo: true
+  };
+
+  try{
+    const id = document.getElementById("p_id").value;
+    if(id){
+      const { error } = await db.from("productos").update(registro).eq("id", id);
+      if(error) throw error;
+      aviso("Producto actualizado ✔");
+    }else{
+      const { error } = await db.from("productos").insert(registro);
+      if(error) throw error;
+      aviso("Producto guardado ✔");
+    }
+    limpiarFormProducto();
+    await cargarProductos();   // refresca lista y catálogo del POS
+  }catch(err){
+    aviso(err.message,"err");
+  }finally{
+    btn.disabled=false; btn.textContent=textoOrig;
+  }
+});
+
+/* ---------- Mantener el foco en el escáner cuando estamos vendiendo ---------- */
+document.addEventListener("click", (e)=>{
+  // Si estamos en la vista de venta y el clic no fue sobre un campo interactivo, re-enfoca el escáner
+  if(document.getElementById("app").classList.contains("oculto")) return;
+  if(document.getElementById("vistaVender").classList.contains("oculto")) return;
+  const t=e.target;
+  const esCampo = t.closest("input, select, textarea, button, a, .item");
+  if(!esCampo) enfocarEscaner();
+});
+
+/* ---------- Arranque ---------- */
+if(SUPABASE_KEY==="PEGA_AQUI_TU_ANON_KEY"){
+  document.getElementById("loginError").textContent = "⚠ Falta pegar tu anon key en el código (línea de configuración).";
+}
+revisarSesion();
+</script>
+</body>
+</html>

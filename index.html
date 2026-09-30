@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Titanium · Menú</title>
+<meta name="theme-color" content="#0d0f14">
+<style>
+  :root{
+    --bg:#0d0f14; --bg2:#141821; --card:#1a1f2b; --card2:#20263485;
+    --line:#2a3141; --txt:#e8ecf3; --txt2:#9aa4b6; --txt3:#6b7488;
+    --acc:#ff7a1a; --acc2:#ffa04d; --ok:#2fd07a; --warn:#f7b731; --bad:#ff5964;
+    --radio:16px; --sombra:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%, #1b2130 0%, var(--bg) 55%);
+    color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  header{
+    display:flex; align-items:center; gap:14px; justify-content:center;
+    padding:40px 20px 10px; text-align:center; flex-direction:column;
+  }
+  .logo{
+    width:72px; height:72px; border-radius:18px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--acc),#c94e00); color:#fff; font-size:38px;
+    box-shadow:0 6px 20px rgba(255,122,26,.45);
+  }
+  header h1{font-size:26px; letter-spacing:5px; font-weight:800; margin-top:6px}
+  header h1 span{color:var(--acc)}
+  header p{color:var(--txt3); font-size:13px; letter-spacing:2px; margin-top:2px}
+
+  main{max-width:820px; margin:0 auto; padding:24px 20px 60px}
+  .rejilla{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px; margin-top:18px}
+  a.tarjeta{
+    text-decoration:none; color:var(--txt); background:var(--card); border:1px solid var(--line);
+    border-radius:var(--radio); padding:24px; box-shadow:var(--sombra); display:block;
+    transition:transform .08s, border-color .15s;
+  }
+  a.tarjeta:hover{transform:translateY(-3px); border-color:var(--acc)}
+  a.tarjeta .ico{font-size:34px; margin-bottom:12px}
+  a.tarjeta h2{font-size:17px; font-weight:700; margin-bottom:6px}
+  a.tarjeta p{color:var(--txt3); font-size:13px; line-height:1.4}
+
+  .separador{margin:34px 0 14px; color:var(--txt3); font-size:12px; letter-spacing:2px; text-transform:uppercase; text-align:center}
+  a.tarjeta.socio{border-style:dashed}
+  a.tarjeta.socio:hover{border-color:var(--acc2)}
+  footer{text-align:center; color:var(--txt3); font-size:12px; padding:20px}
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">🏋️</div>
+    <h1>TITA<span>NIUM</span></h1>
+    <p>SISTEMA DE GESTIÓN</p>
+  </header>
+
+  <main>
+    <div class="separador">Para el personal del gimnasio</div>
+    <div class="rejilla">
+      <a class="tarjeta" href="titanium-socios.html">
+        <div class="ico">👥</div>
+        <h2>Socios</h2>
+        <p>Alta de socios, venta de paquetes y cobro. Lista con vigencias.</p>
+      </a>
+      <a class="tarjeta" href="titanium-acceso.html">
+        <div class="ico">🚪</div>
+        <h2>Control de acceso</h2>
+        <p>Entrada y salida por QR o PIN. Valida membresía y aforo.</p>
+      </a>
+      <a class="tarjeta" href="titanium-pos.html">
+        <div class="ico">🛒</div>
+        <h2>Punto de venta</h2>
+        <p>Venta de productos con pistola e inventario.</p>
+      </a>
+      <a class="tarjeta" href="titanium-caja.html">
+        <div class="ico">💰</div>
+        <h2>Corte de caja</h2>
+        <p>Ingresos del día por membresías y productos.</p>
+      </a>
+    </div>
+
+    <div class="separador">Para los socios (compártelo con ellos)</div>
+    <div class="rejilla">
+      <a class="tarjeta socio" href="titanium-portal.html">
+        <div class="ico">📱</div>
+        <h2>Portal del socio</h2>
+        <p>El socio consulta su paquete, días u horas y su QR de acceso con su código y PIN.</p>
+      </a>
+    </div>
+  </main>
+
+  <footer>Titanium · Todo en la nube</footer>
+</body>
+</html>

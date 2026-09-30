@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Titanium · Socios</title>
+
+<!-- Librerías: Supabase (base de datos) y QRCode (para el código del socio) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+  /* ====================================================================
+     TITANIUM · Tema oscuro tipo gym (metálico + acento ámbar)
+     ==================================================================== */
+  :root{
+    --bg:#0d0f14; --bg2:#141821; --card:#1a1f2b; --card2:#20263485;
+    --line:#2a3141; --txt:#e8ecf3; --txt2:#9aa4b6; --txt3:#6b7488;
+    --acc:#ff7a1a; --acc2:#ffa04d; --ok:#2fd07a; --warn:#f7b731; --bad:#ff5964;
+    --radio:14px; --sombra:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%, #1b2130 0%, var(--bg) 55%);
+    color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .oculto{display:none !important}
+  button{font-family:inherit; cursor:pointer}
+  input,select{font-family:inherit}
+
+  /* ---- Encabezado ---- */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; background:#0b0d12cc; backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20;
+  }
+  .marca{display:flex; align-items:center; gap:12px}
+  .logo{
+    width:38px; height:38px; border-radius:10px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--acc),#c94e00); color:#fff; font-size:20px;
+    box-shadow:0 4px 14px rgba(255,122,26,.4);
+  }
+  .marca h1{font-size:18px; letter-spacing:3px; font-weight:800}
+  .marca span{color:var(--acc)}
+  .marca small{display:block; color:var(--txt3); letter-spacing:2px; font-size:10px; font-weight:600}
+  .btn-salir{background:transparent; color:var(--txt2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; font-size:13px}
+  .btn-salir:hover{color:var(--txt); border-color:var(--txt3)}
+
+  /* ---- Pestañas ---- */
+  nav.tabs{display:flex; gap:6px; padding:14px 20px 0; max-width:1100px; margin:0 auto; width:100%}
+  nav.tabs button{
+    background:transparent; color:var(--txt2); border:none; padding:12px 18px;
+    border-radius:12px 12px 0 0; font-size:14px; font-weight:600; position:relative;
+  }
+  nav.tabs button.on{color:var(--acc); background:var(--card)}
+  nav.tabs button.on::after{content:""; position:absolute; left:18px; right:18px; bottom:-1px; height:2px; background:var(--acc)}
+
+  main{max-width:1100px; margin:0 auto; padding:20px}
+
+  /* ---- Tarjetas / formularios ---- */
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radio); padding:22px; box-shadow:var(--sombra)}
+  .card h2{font-size:16px; margin-bottom:4px; display:flex; align-items:center; gap:8px}
+  .card .sub{color:var(--txt3); font-size:13px; margin-bottom:18px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px}
+  .campo{display:flex; flex-direction:column; gap:6px}
+  .campo label{font-size:12px; color:var(--txt2); font-weight:600; letter-spacing:.3px}
+  .campo label b{color:var(--acc)}
+  .campo input,.campo select{
+    background:var(--bg2); border:1px solid var(--line); color:var(--txt);
+    padding:11px 13px; border-radius:10px; font-size:14px; outline:none; width:100%;
+  }
+  .campo input:focus,.campo select:focus{border-color:var(--acc); box-shadow:0 0 0 3px rgba(255,122,26,.15)}
+  .campo .ayuda{font-size:11px; color:var(--txt3)}
+
+  .divisor{height:1px; background:var(--line); margin:22px 0}
+
+  .btn{
+    background:linear-gradient(135deg,var(--acc),#e05e00); color:#fff; border:none;
+    padding:13px 22px; border-radius:11px; font-size:15px; font-weight:700; letter-spacing:.3px;
+    box-shadow:0 6px 18px rgba(255,122,26,.35); transition:transform .05s;
+  }
+  .btn:hover{transform:translateY(-1px)} .btn:active{transform:translateY(0)}
+  .btn:disabled{opacity:.5; cursor:not-allowed; transform:none}
+  .btn.sec{background:var(--card2); color:var(--txt); box-shadow:none; border:1px solid var(--line)}
+  .btn.chico{padding:8px 14px; font-size:13px; border-radius:9px}
+
+  .resumen{background:var(--card2); border:1px dashed var(--line); border-radius:12px; padding:14px 16px; margin-top:4px}
+  .resumen .fila{display:flex; justify-content:space-between; font-size:14px; padding:4px 0}
+  .resumen .fila b{color:var(--acc2); font-size:18px}
+
+  /* ---- Buscador + tabla socios ---- */
+  .barra{display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap}
+  .barra input{flex:1; min-width:200px; background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:11px 14px; border-radius:10px; font-size:14px; outline:none}
+  .tabla-wrap{overflow-x:auto; border-radius:12px; border:1px solid var(--line)}
+  table{width:100%; border-collapse:collapse; font-size:14px; min-width:640px}
+  th{text-align:left; padding:12px 14px; color:var(--txt3); font-size:11px; letter-spacing:.5px; text-transform:uppercase; background:var(--bg2); border-bottom:1px solid var(--line)}
+  td{padding:12px 14px; border-bottom:1px solid var(--line); color:var(--txt)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#ffffff05}
+  .cod{font-family:ui-monospace,monospace; color:var(--acc2); font-size:13px}
+  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700}
+  .pill.ok{background:rgba(47,208,122,.15); color:var(--ok)}
+  .pill.warn{background:rgba(247,183,49,.15); color:var(--warn)}
+  .pill.bad{background:rgba(255,89,100,.15); color:var(--bad)}
+  .pill.gris{background:#ffffff10; color:var(--txt2)}
+  .vacio{text-align:center; padding:40px; color:var(--txt3)}
+
+  /* ---- Login ---- */
+  .login-wrap{min-height:100vh; display:grid; place-items:center; padding:20px}
+  .login{width:100%; max-width:380px; text-align:center}
+  .login .logo{width:64px; height:64px; font-size:32px; margin:0 auto 18px; border-radius:16px}
+  .login h1{letter-spacing:4px; font-weight:800; margin-bottom:6px}
+  .login h1 span{color:var(--acc)}
+  .login p{color:var(--txt3); font-size:13px; margin-bottom:26px}
+  .login .campo{text-align:left; margin-bottom:14px}
+  .login .btn{width:100%; margin-top:6px}
+
+  /* ---- Modal ---- */
+  .modal-bg{position:fixed; inset:0; background:#000a; display:grid; place-items:center; padding:20px; z-index:50}
+  .modal{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px; width:100%; max-width:460px; box-shadow:var(--sombra); max-height:90vh; overflow:auto}
+  .modal h2{margin-bottom:4px} .modal .cerrar{float:right; background:none; border:none; color:var(--txt3); font-size:22px; line-height:1}
+
+  /* ---- Aviso (toast) ---- */
+  #aviso{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:14px 22px; border-radius:12px; font-size:14px; font-weight:600; box-shadow:var(--sombra); z-index:90; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; max-width:90%}
+  #aviso.show{opacity:1; transform:translateX(-50%) translateY(-4px)}
+  #aviso.ok{background:var(--ok); color:#04231a} #aviso.err{background:var(--bad); color:#2a0409}
+
+  /* ---- Confirmación con QR ---- */
+  .qr-box{text-align:center; padding:8px}
+  .qr-box #qr_contenedor{background:#fff; padding:14px; border-radius:12px; margin:14px auto; display:inline-block; line-height:0}
+  .qr-box .cod-grande{font-family:ui-monospace,monospace; font-size:22px; color:var(--acc2); font-weight:700; letter-spacing:1px}
+
+  @media(max-width:560px){
+    nav.tabs button{padding:11px 12px; font-size:13px}
+    main{padding:14px}
+    .card{padding:16px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= PANTALLA DE LOGIN ================= -->
+<div id="pantallaLogin" class="login-wrap">
+  <form class="login card" id="formLogin">
+    <div class="logo">🏋️</div>
+    <h1>TITA<span>NIUM</span></h1>
+    <p>Panel de administración</p>
+    <div class="campo">
+      <label>Correo</label>
+      <input type="email" id="loginEmail" required autocomplete="username" placeholder="tucorreo@ejemplo.com">
+    </div>
+    <div class="campo">
+      <label>Contraseña</label>
+      <input type="password" id="loginPass" required autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn" type="submit" id="btnLogin">Entrar</button>
+    <p id="loginError" style="color:var(--bad); margin-top:14px; min-height:16px"></p>
+  </form>
+</div>
+
+<!-- ================= APLICACIÓN ================= -->
+<div id="app" class="oculto">
+  <header>
+    <div class="marca">
+      <div class="logo">🏋️</div>
+      <div>
+        <h1>TITA<span>NIUM</span></h1>
+        <small>GESTIÓN DE SOCIOS</small>
+      </div>
+    </div>
+    <button class="btn-salir" id="btnSalir">Cerrar sesión</button>
+  </header>
+
+  <nav class="tabs">
+    <button id="tabNuevo" class="on" onclick="mostrarVista('nuevo')">➕ Nuevo socio</button>
+    <button id="tabLista" onclick="mostrarVista('lista')">👥 Socios</button>
+  </nav>
+
+  <main>
+    <!-- ---------- VISTA: NUEVO SOCIO ---------- -->
+    <section id="vistaNuevo" class="card">
+      <h2>➕ Registrar socio y cobrar</h2>
+      <p class="sub">Da de alta al socio, elige su paquete y registra el pago en un solo paso.</p>
+
+      <form id="formNuevo">
+        <div class="grid">
+          <div class="campo">
+            <label>Nombre completo <b>*</b></label>
+            <input type="text" id="n_nombre" required placeholder="Ej. Juan Pérez López">
+          </div>
+          <div class="campo">
+            <label>Teléfono / WhatsApp</label>
+            <input type="tel" id="n_telefono" placeholder="Ej. 2871234567">
+          </div>
+          <div class="campo">
+            <label>Correo</label>
+            <input type="email" id="n_correo" placeholder="socio@ejemplo.com">
+          </div>
+          <div class="campo">
+            <label>Fecha de nacimiento</label>
+            <input type="date" id="n_nacimiento">
+          </div>
+          <div class="campo">
+            <label>Sexo</label>
+            <select id="n_sexo">
+              <option value="">—</option>
+              <option value="M">Hombre</option>
+              <option value="F">Mujer</option>
+              <option value="otro">Otro</option>
+            </select>
+          </div>
+          <div class="campo">
+            <label>PIN de acceso (4 dígitos)</label>
+            <input type="text" id="n_pin" maxlength="4" inputmode="numeric" pattern="[0-9]{4}" placeholder="Ej. 1234">
+            <span class="ayuda">Respaldo por si no trae su QR. Puedes dejarlo vacío.</span>
+          </div>
+        </div>
+
+        <div class="divisor"></div>
+
+        <div class="grid">
+          <div class="campo">
+            <label>Paquete <b>*</b></label>
+            <select id="n_plan" required></select>
+          </div>
+          <div class="campo">
+            <label>Monto a cobrar</label>
+            <input type="number" id="n_monto" step="0.01" min="0" placeholder="0.00">
+            <span class="ayuda">Se llena solo con el precio del paquete. Puedes ajustarlo si hay promo.</span>
+          </div>
+          <div class="campo">
+            <label>Método de pago</label>
+            <select id="n_metodo">
+              <option value="efectivo">Efectivo</option>
+              <option value="tarjeta">Tarjeta</option>
+              <option value="transferencia">Transferencia</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="resumen" id="n_resumen" style="display:none"></div>
+
+        <div style="margin-top:20px; display:flex; gap:12px; flex-wrap:wrap">
+          <button class="btn" type="submit" id="btnRegistrar">Registrar socio y cobrar</button>
+          <button class="btn sec" type="reset">Limpiar</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ---------- VISTA: LISTA DE SOCIOS ---------- -->
+    <section id="vistaLista" class="oculto">
+      <div class="barra">
+        <input type="text" id="buscar" placeholder="🔍 Buscar por nombre o código...">
+        <button class="btn sec chico" onclick="cargarSocios()">↻ Actualizar</button>
+      </div>
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th><th>Socio</th><th>Paquete</th><th>Vigencia</th><th>Estatus</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="tbodySocios">
+            <tr><td colspan="6" class="vacio">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ================= MODAL: VENDER PAQUETE A SOCIO EXISTENTE ================= -->
+<div id="modalVender" class="modal-bg oculto">
+  <div class="modal">
+    <button class="cerrar" onclick="cerrarModal()">×</button>
+    <h2>💳 Vender paquete</h2>
+    <p class="sub" id="v_socioNombre"></p>
+    <form id="formVender">
+      <div class="campo" style="margin-bottom:14px">
+        <label>Paquete <b>*</b></label>
+        <select id="v_plan" required></select>
+      </div>
+      <div class="campo" style="margin-bottom:14px">
+        <label>Monto a cobrar</label>
+        <input type="number" id="v_monto" step="0.01" min="0" placeholder="0.00">
+      </div>
+      <div class="campo" style="margin-bottom:14px">
+        <label>Método de pago</label>
+        <select id="v_metodo">
+          <option value="efectivo">Efectivo</option>
+          <option value="tarjeta">Tarjeta</option>
+          <option value="transferencia">Transferencia</option>
+        </select>
+      </div>
+      <div class="resumen" id="v_resumen" style="display:none"></div>
+      <button class="btn" type="submit" id="btnVender" style="width:100%; margin-top:16px">Cobrar y activar paquete</button>
+    </form>
+  </div>
+</div>
+
+<!-- ================= MODAL: CONFIRMACIÓN CON QR ================= -->
+<div id="modalQR" class="modal-bg oculto">
+  <div class="modal qr-box">
+    <button class="cerrar" onclick="document.getElementById('modalQR').classList.add('oculto')">×</button>
+    <h2 style="text-align:center">✅ Socio registrado</h2>
+    <p class="sub" id="qr_nombre" style="text-align:center"></p>
+    <div id="qr_contenedor"></div>
+    <div class="cod-grande" id="qr_codigo"></div>
+    <div id="qr_pin" style="margin-top:8px; font-size:14px; color:var(--txt2)"></div>
+    <p style="color:var(--txt3); font-size:12px; margin-top:10px">Este es el código de acceso del socio. Podrá mostrarlo desde su celular para entrar. El PIN le sirve para consultar su paquete en el portal.</p>
+  </div>
+</div>
+
+<div id="aviso"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN — Conexión a tu Supabase
+   ---------------------------------------------------------------------
+   La URL ya está puesta. Solo falta pegar tu "anon public key":
+   Supabase → Project Settings (engrane) → API → "Project API keys"
+   → copia la que dice  anon  public  y pégala entre las comillas.
+   ===================================================================== */
+const SUPABASE_URL  = "https://qwdswodysasskchrgquz.supabase.co";
+const SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3ZHN3b2R5c2Fzc2tjaHJncXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MjQ3OTgsImV4cCI6MjEwNjMwMDc5OH0.1XFVf34Vr8PDIUkf78bOvhIqk4mTPKlO74farozVdjs";   // 👈 SOLO cambia esto
+
+const { createClient } = window.supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let PLANES = [];          // catálogo cargado desde la BD
+let SOCIOS = [];          // lista actual (para el buscador)
+let socioVenta = null;    // socio seleccionado en el modal de venta
+
+/* ---------- Utilidades ---------- */
+function hoyISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function sumarDias(dias){ const d=new Date(); d.setDate(d.getDate()+Number(dias)); return d.toISOString().slice(0,10); }
+function dinero(n){ return "$"+Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function aviso(msg, tipo="ok"){
+  const a=document.getElementById("aviso");
+  a.textContent=msg; a.className=tipo+" show";
+  setTimeout(()=>a.classList.remove("show"), 3200);
+}
+
+/* ---------- Autenticación ---------- */
+document.getElementById("formLogin").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn=document.getElementById("btnLogin");
+  const err=document.getElementById("loginError");
+  err.textContent=""; btn.disabled=true; btn.textContent="Entrando...";
+  const { error } = await db.auth.signInWithPassword({
+    email:document.getElementById("loginEmail").value.trim(),
+    password:document.getElementById("loginPass").value
+  });
+  btn.disabled=false; btn.textContent="Entrar";
+  if(error){ err.textContent = "Correo o contraseña incorrectos."; }
+});
+
+document.getElementById("btnSalir").addEventListener("click", async ()=>{
+  await db.auth.signOut(); location.reload();
+});
+
+async function revisarSesion(){
+  const { data:{ session } } = await db.auth.getSession();
+  if(session){ entrarApp(); } else { document.getElementById("pantallaLogin").classList.remove("oculto"); }
+}
+db.auth.onAuthStateChange((_e, session)=>{ if(session) entrarApp(); });
+
+async function entrarApp(){
+  document.getElementById("pantallaLogin").classList.add("oculto");
+  document.getElementById("app").classList.remove("oculto");
+  await cargarPlanes();
+  await cargarSocios();
+}
+
+/* ---------- Navegación entre vistas ---------- */
+function mostrarVista(v){
+  document.getElementById("vistaNuevo").classList.toggle("oculto", v!=="nuevo");
+  document.getElementById("vistaLista").classList.toggle("oculto", v!=="lista");
+  document.getElementById("tabNuevo").classList.toggle("on", v==="nuevo");
+  document.getElementById("tabLista").classList.toggle("on", v==="lista");
+  if(v==="lista") cargarSocios();
+}
+
+/* ---------- Cargar catálogo de planes ---------- */
+async function cargarPlanes(){
+  const { data, error } = await db.from("planes").select("*").eq("activo",true).order("precio");
+  if(error){ aviso("No se pudieron cargar los paquetes: "+error.message,"err"); return; }
+  PLANES = data||[];
+  const opts = '<option value="">Elige un paquete...</option>' +
+    PLANES.map(p=>`<option value="${p.id}">${p.nombre} — ${dinero(p.precio)}</option>`).join("");
+  document.getElementById("n_plan").innerHTML = opts;
+  document.getElementById("v_plan").innerHTML = opts;
+}
+
+/* Calcula qué se guardará en la membresía según el tipo de plan */
+function calcularMembresia(plan){
+  const m = { fecha_inicio:hoyISO(), fecha_fin:null, visitas_restantes:null, horas_restantes:null };
+  if(plan.duracion_dias) m.fecha_fin = sumarDias(plan.duracion_dias);
+  if(plan.tipo==="visitas") m.visitas_restantes = plan.visitas_incluidas;
+  if(plan.tipo==="horas")   m.horas_restantes   = plan.horas_incluidas;
+  return m;
+}
+function textoVigencia(plan){
+  const partes=[];
+  if(plan.duracion_dias) partes.push(`vence el ${sumarDias(plan.duracion_dias).split("-").reverse().join("/")}`);
+  if(plan.tipo==="visitas") partes.push(`${plan.visitas_incluidas} visitas`);
+  if(plan.tipo==="horas") partes.push(`${plan.horas_incluidas} horas`);
+  return partes.join(" · ") || "sin vigencia definida";
+}
+
+/* ---------- Resumen dinámico (nuevo socio) ---------- */
+function pintarResumen(selPlan, inpMonto, divResumen){
+  const plan = PLANES.find(p=>p.id===selPlan.value);
+  if(!plan){ divResumen.style.display="none"; return; }
+  if(!inpMonto.dataset.tocado) inpMonto.value = plan.precio;
+  divResumen.style.display="block";
+  divResumen.innerHTML = `
+    <div class="fila"><span>Paquete</span><span>${plan.nombre}</span></div>
+    <div class="fila"><span>Vigencia</span><span>${textoVigencia(plan)}</span></div>
+    <div class="fila"><span>Total a cobrar</span><b>${dinero(inpMonto.value)}</b></div>`;
+}
+const nPlan=document.getElementById("n_plan"), nMonto=document.getElementById("n_monto"), nResumen=document.getElementById("n_resumen");
+nPlan.addEventListener("change", ()=>{ nMonto.dataset.tocado=""; pintarResumen(nPlan,nMonto,nResumen); });
+nMonto.addEventListener("input", ()=>{ nMonto.dataset.tocado="1"; pintarResumen(nPlan,nMonto,nResumen); });
+
+const vPlan=document.getElementById("v_plan"), vMonto=document.getElementById("v_monto"), vResumen=document.getElementById("v_resumen");
+vPlan.addEventListener("change", ()=>{ vMonto.dataset.tocado=""; pintarResumen(vPlan,vMonto,vResumen); });
+vMonto.addEventListener("input", ()=>{ vMonto.dataset.tocado="1"; pintarResumen(vPlan,vMonto,vResumen); });
+
+/* ---------- Registrar socio nuevo + membresía + pago ---------- */
+document.getElementById("formNuevo").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const plan = PLANES.find(p=>p.id===nPlan.value);
+  if(!plan){ aviso("Elige un paquete.","err"); return; }
+  const btn=document.getElementById("btnRegistrar");
+  btn.disabled=true; btn.textContent="Guardando...";
+
+  try{
+    // PIN: si se deja vacío, se genera uno de 4 dígitos (le sirve al socio para su portal)
+    const pinAcceso = document.getElementById("n_pin").value.trim() || String(Math.floor(1000+Math.random()*9000));
+    // 1) Alta del socio
+    const { data:socio, error:e1 } = await db.from("socios").insert({
+      nombre_completo: document.getElementById("n_nombre").value.trim(),
+      telefono: document.getElementById("n_telefono").value.trim() || null,
+      correo: document.getElementById("n_correo").value.trim() || null,
+      fecha_nacimiento: document.getElementById("n_nacimiento").value || null,
+      sexo: document.getElementById("n_sexo").value || null,
+      pin: pinAcceso
+    }).select().single();
+    if(e1) throw e1;
+
+    // 2) Membresía
+    const m = calcularMembresia(plan);
+    const { data:memb, error:e2 } = await db.from("membresias").insert({
+      socio_id: socio.id, plan_id: plan.id,
+      fecha_inicio:m.fecha_inicio, fecha_fin:m.fecha_fin,
+      visitas_restantes:m.visitas_restantes, horas_restantes:m.horas_restantes,
+      precio_pagado: Number(nMonto.value||plan.precio), estatus:"activa"
+    }).select().single();
+    if(e2) throw e2;
+
+    // 3) Pago
+    const { error:e3 } = await db.from("pagos").insert({
+      socio_id: socio.id, membresia_id: memb.id,
+      concepto: "Membresía "+plan.nombre,
+      monto: Number(nMonto.value||plan.precio),
+      metodo: document.getElementById("n_metodo").value
+    });
+    if(e3) throw e3;
+
+    // Guardado OK. El QR es secundario: si falla, el socio ya quedó registrado.
+    aviso("Socio registrado y pago cobrado ✔");
+    document.getElementById("formNuevo").reset();
+    nResumen.style.display="none";
+    mostrarQR(socio.codigo, socio.nombre_completo, pinAcceso);
+  }catch(err){
+    aviso("Error: "+(err.message||"no se pudo guardar"),"err");
+  }finally{
+    btn.disabled=false; btn.textContent="Registrar socio y cobrar";
+  }
+});
+
+/* ---------- Confirmación con QR (blindada: nunca rompe el registro) ---------- */
+function mostrarQR(codigo, nombre, pin){
+  document.getElementById("qr_nombre").textContent = nombre;
+  document.getElementById("qr_codigo").textContent = codigo;
+  document.getElementById("qr_pin").innerHTML = pin ? ("PIN: <b style='color:var(--acc2);font-family:ui-monospace,monospace'>"+pin+"</b>") : "";
+  const cont = document.getElementById("qr_contenedor");
+  cont.innerHTML = "";
+  try{
+    new QRCode(cont, { text:codigo, width:200, height:200, correctLevel:QRCode.CorrectLevel.M });
+  }catch(e){
+    cont.style.background="transparent";
+    cont.innerHTML = '<p style="color:var(--txt2);font-size:13px">(No se pudo dibujar el QR, pero el código es válido)</p>';
+  }
+  document.getElementById("modalQR").classList.remove("oculto");
+}
+
+/* ---------- Lista de socios (usa la vista v_socios_estado) ---------- */
+async function cargarSocios(){
+  const tb=document.getElementById("tbodySocios");
+  tb.innerHTML='<tr><td colspan="6" class="vacio">Cargando...</td></tr>';
+  const { data, error } = await db.from("v_socios_estado").select("*").order("nombre_completo");
+  if(error){ tb.innerHTML=`<tr><td colspan="6" class="vacio">Error: ${error.message}</td></tr>`; return; }
+  SOCIOS = data||[];
+  pintarSocios(SOCIOS);
+}
+
+function estadoPill(s){
+  if(s.estatus!=="activo") return '<span class="pill gris">Inactivo</span>';
+  if(!s.membresia_id) return '<span class="pill gris">Sin paquete</span>';
+  // Por visitas / horas
+  if(s.visitas_restantes!=null && s.dias_restantes==null){
+    return s.visitas_restantes>0 ? `<span class="pill ok">${s.visitas_restantes} visitas</span>` : '<span class="pill bad">Sin visitas</span>';
+  }
+  if(s.dias_restantes==null) return '<span class="pill ok">Activo</span>';
+  if(s.dias_restantes<0)  return '<span class="pill bad">Vencido</span>';
+  if(s.dias_restantes<=3) return `<span class="pill warn">${s.dias_restantes} día(s)</span>`;
+  return `<span class="pill ok">${s.dias_restantes} días</span>`;
+}
+function vigenciaTxt(s){
+  if(!s.membresia_id) return "—";
+  const bits=[];
+  if(s.plan) bits.push(s.plan);
+  if(s.fecha_fin) bits.push(s.fecha_fin.split("-").reverse().join("/"));
+  if(s.visitas_restantes!=null) bits.push(s.visitas_restantes+" vis.");
+  if(s.horas_restantes!=null) bits.push(s.horas_restantes+" hrs.");
+  return bits.join(" · ");
+}
+function pintarSocios(lista){
+  const tb=document.getElementById("tbodySocios");
+  if(!lista.length){ tb.innerHTML='<tr><td colspan="6" class="vacio">Aún no hay socios. Da de alta al primero 💪</td></tr>'; return; }
+  tb.innerHTML = lista.map(s=>`
+    <tr>
+      <td class="cod">${s.codigo||""}</td>
+      <td>${s.nombre_completo}${s.telefono?`<br><span style="color:var(--txt3);font-size:12px">${s.telefono}</span>`:""}</td>
+      <td>${s.plan||"—"}</td>
+      <td style="color:var(--txt2);font-size:13px">${vigenciaTxt(s)}</td>
+      <td>${estadoPill(s)}</td>
+      <td><button class="btn sec chico" onclick='abrirVender(${JSON.stringify({id:s.id,nombre:s.nombre_completo})})'>Vender paquete</button></td>
+    </tr>`).join("");
+}
+
+document.getElementById("buscar").addEventListener("input", (e)=>{
+  const q=e.target.value.toLowerCase().trim();
+  pintarSocios(SOCIOS.filter(s=>
+    (s.nombre_completo||"").toLowerCase().includes(q) ||
+    (s.codigo||"").toLowerCase().includes(q)
+  ));
+});
+
+/* ---------- Modal: vender paquete a socio existente ---------- */
+function abrirVender(socio){
+  socioVenta = socio;
+  document.getElementById("v_socioNombre").textContent = socio.nombre;
+  document.getElementById("formVender").reset();
+  vResumen.style.display="none"; vMonto.dataset.tocado="";
+  document.getElementById("modalVender").classList.remove("oculto");
+}
+function cerrarModal(){ document.getElementById("modalVender").classList.add("oculto"); }
+
+document.getElementById("formVender").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const plan = PLANES.find(p=>p.id===vPlan.value);
+  if(!plan || !socioVenta){ aviso("Elige un paquete.","err"); return; }
+  const btn=document.getElementById("btnVender");
+  btn.disabled=true; btn.textContent="Cobrando...";
+  try{
+    // Al vender un paquete nuevo, la membresía activa anterior se marca como vencida
+    await db.from("membresias").update({estatus:"vencida"}).eq("socio_id",socioVenta.id).eq("estatus","activa");
+
+    const m = calcularMembresia(plan);
+    const { data:memb, error:e1 } = await db.from("membresias").insert({
+      socio_id: socioVenta.id, plan_id: plan.id,
+      fecha_inicio:m.fecha_inicio, fecha_fin:m.fecha_fin,
+      visitas_restantes:m.visitas_restantes, horas_restantes:m.horas_restantes,
+      precio_pagado: Number(vMonto.value||plan.precio), estatus:"activa"
+    }).select().single();
+    if(e1) throw e1;
+
+    const { error:e2 } = await db.from("pagos").insert({
+      socio_id: socioVenta.id, membresia_id: memb.id,
+      concepto:"Membresía "+plan.nombre,
+      monto: Number(vMonto.value||plan.precio),
+      metodo: document.getElementById("v_metodo").value
+    });
+    if(e2) throw e2;
+
+    cerrarModal(); aviso("Paquete activado y pago cobrado ✔"); cargarSocios();
+  }catch(err){
+    aviso("Error: "+(err.message||"no se pudo cobrar"),"err");
+  }finally{
+    btn.disabled=false; btn.textContent="Cobrar y activar paquete";
+  }
+});
+
+/* ---------- Arranque ---------- */
+if(SUPABASE_KEY==="PEGA_AQUI_TU_ANON_KEY"){
+  document.getElementById("loginError").textContent = "⚠ Falta pegar tu anon key en el código (línea de configuración).";
+}
+revisarSesion();
+</script>
+</body>
+</html>

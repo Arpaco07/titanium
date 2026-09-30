@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Titanium · Corte de caja</title>
+
+<!-- Librerías: Supabase (base de datos) -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  /* ====================================================================
+     TITANIUM · Tema oscuro tipo gym (metálico + acento ámbar)
+     ==================================================================== */
+  :root{
+    --bg:#0d0f14; --bg2:#141821; --card:#1a1f2b; --card2:#20263485;
+    --line:#2a3141; --txt:#e8ecf3; --txt2:#9aa4b6; --txt3:#6b7488;
+    --acc:#ff7a1a; --acc2:#ffa04d; --ok:#2fd07a; --warn:#f7b731; --bad:#ff5964;
+    --radio:14px; --sombra:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%, #1b2130 0%, var(--bg) 55%);
+    color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .oculto{display:none !important}
+  button{font-family:inherit; cursor:pointer}
+  input,select{font-family:inherit}
+
+  /* ---- Encabezado ---- */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; background:#0b0d12cc; backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20;
+  }
+  .marca{display:flex; align-items:center; gap:12px}
+  .logo{
+    width:38px; height:38px; border-radius:10px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--acc),#c94e00); color:#fff; font-size:20px;
+    box-shadow:0 4px 14px rgba(255,122,26,.4);
+  }
+  .marca h1{font-size:18px; letter-spacing:3px; font-weight:800}
+  .marca span{color:var(--acc)}
+  .marca small{display:block; color:var(--txt3); letter-spacing:2px; font-size:10px; font-weight:600}
+  .btn-salir{background:transparent; color:var(--txt2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; font-size:13px}
+  .btn-salir:hover{color:var(--txt); border-color:var(--txt3)}
+
+  /* ---- Pestañas ---- */
+  nav.tabs{display:flex; gap:6px; padding:14px 20px 0; max-width:1100px; margin:0 auto; width:100%}
+  nav.tabs button{
+    background:transparent; color:var(--txt2); border:none; padding:12px 18px;
+    border-radius:12px 12px 0 0; font-size:14px; font-weight:600; position:relative;
+  }
+  nav.tabs button.on{color:var(--acc); background:var(--card)}
+  nav.tabs button.on::after{content:""; position:absolute; left:18px; right:18px; bottom:-1px; height:2px; background:var(--acc)}
+
+  main{max-width:1100px; margin:0 auto; padding:20px}
+
+  /* ---- Tarjetas / formularios ---- */
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radio); padding:22px; box-shadow:var(--sombra)}
+  .card h2{font-size:16px; margin-bottom:4px; display:flex; align-items:center; gap:8px}
+  .card .sub{color:var(--txt3); font-size:13px; margin-bottom:18px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px}
+  .campo{display:flex; flex-direction:column; gap:6px}
+  .campo label{font-size:12px; color:var(--txt2); font-weight:600; letter-spacing:.3px}
+  .campo label b{color:var(--acc)}
+  .campo input,.campo select{
+    background:var(--bg2); border:1px solid var(--line); color:var(--txt);
+    padding:11px 13px; border-radius:10px; font-size:14px; outline:none; width:100%;
+  }
+  .campo input:focus,.campo select:focus{border-color:var(--acc); box-shadow:0 0 0 3px rgba(255,122,26,.15)}
+  .campo .ayuda{font-size:11px; color:var(--txt3)}
+
+  .divisor{height:1px; background:var(--line); margin:22px 0}
+
+  .btn{
+    background:linear-gradient(135deg,var(--acc),#e05e00); color:#fff; border:none;
+    padding:13px 22px; border-radius:11px; font-size:15px; font-weight:700; letter-spacing:.3px;
+    box-shadow:0 6px 18px rgba(255,122,26,.35); transition:transform .05s;
+  }
+  .btn:hover{transform:translateY(-1px)} .btn:active{transform:translateY(0)}
+  .btn:disabled{opacity:.5; cursor:not-allowed; transform:none}
+  .btn.sec{background:var(--card2); color:var(--txt); box-shadow:none; border:1px solid var(--line)}
+  .btn.chico{padding:8px 14px; font-size:13px; border-radius:9px}
+
+  .resumen{background:var(--card2); border:1px dashed var(--line); border-radius:12px; padding:14px 16px; margin-top:4px}
+  .resumen .fila{display:flex; justify-content:space-between; font-size:14px; padding:4px 0}
+  .resumen .fila b{color:var(--acc2); font-size:18px}
+
+  /* ---- Buscador + tabla ---- */
+  .barra{display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap}
+  .barra input{flex:1; min-width:200px; background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:11px 14px; border-radius:10px; font-size:14px; outline:none}
+  .tabla-wrap{overflow-x:auto; border-radius:12px; border:1px solid var(--line)}
+  table{width:100%; border-collapse:collapse; font-size:14px; min-width:520px}
+  th{text-align:left; padding:12px 14px; color:var(--txt3); font-size:11px; letter-spacing:.5px; text-transform:uppercase; background:var(--bg2); border-bottom:1px solid var(--line)}
+  td{padding:12px 14px; border-bottom:1px solid var(--line); color:var(--txt)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#ffffff05}
+  .cod{font-family:ui-monospace,monospace; color:var(--acc2); font-size:13px}
+  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700}
+  .pill.ok{background:rgba(47,208,122,.15); color:var(--ok)}
+  .pill.warn{background:rgba(247,183,49,.15); color:var(--warn)}
+  .pill.bad{background:rgba(255,89,100,.15); color:var(--bad)}
+  .pill.gris{background:#ffffff10; color:var(--txt2)}
+  .vacio{text-align:center; padding:40px; color:var(--txt3)}
+
+  /* ---- Login ---- */
+  .login-wrap{min-height:100vh; display:grid; place-items:center; padding:20px}
+  .login{width:100%; max-width:380px; text-align:center}
+  .login .logo{width:64px; height:64px; font-size:32px; margin:0 auto 18px; border-radius:16px}
+  .login h1{letter-spacing:4px; font-weight:800; margin-bottom:6px}
+  .login h1 span{color:var(--acc)}
+  .login p{color:var(--txt3); font-size:13px; margin-bottom:26px}
+  .login .campo{text-align:left; margin-bottom:14px}
+  .login .btn{width:100%; margin-top:6px}
+
+  /* ---- Aviso (toast) ---- */
+  #aviso{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:14px 22px; border-radius:12px; font-size:14px; font-weight:600; box-shadow:var(--sombra); z-index:90; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; max-width:90%}
+  #aviso.show{opacity:1; transform:translateX(-50%) translateY(-4px)}
+  #aviso.ok{background:var(--ok); color:#04231a} #aviso.err{background:var(--bad); color:#2a0409}
+
+  /* ---- Corte de caja: elementos propios ---- */
+  /* Barra de fecha superior */
+  .barra-fecha{display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:18px}
+  .barra-fecha .campo{min-width:200px}
+
+  /* Rejilla de tarjetas de resumen */
+  .resumen-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:16px; margin-bottom:18px}
+
+  /* Tarjeta de gran total destacada */
+  .card-total{
+    background:linear-gradient(135deg, rgba(255,122,26,.18), rgba(255,122,26,.04));
+    border:1px solid rgba(255,122,26,.4);
+  }
+  .card-total .cifra{font-size:38px; font-weight:800; color:var(--acc); letter-spacing:.5px; margin-top:4px}
+  .card-total .ops{color:var(--txt2); font-size:13px; margin-top:8px}
+
+  /* Título dentro de tarjeta de resumen */
+  .card .titulo-res{font-size:12px; color:var(--txt2); font-weight:700; letter-spacing:.6px; text-transform:uppercase; margin-bottom:12px}
+  .card .subtotal{font-size:24px; font-weight:800; color:var(--acc2); margin-bottom:12px}
+
+  @media(max-width:560px){
+    nav.tabs button{padding:11px 12px; font-size:13px}
+    main{padding:14px}
+    .card{padding:16px}
+    .resumen-grid{grid-template-columns:1fr}   /* tarjetas en columna en móvil */
+    .card-total .cifra{font-size:32px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= PANTALLA DE LOGIN ================= -->
+<div id="pantallaLogin" class="login-wrap">
+  <form class="login card" id="formLogin">
+    <div class="logo">🏋️</div>
+    <h1>TITA<span>NIUM</span></h1>
+    <p>Corte de caja</p>
+    <div class="campo">
+      <label>Correo</label>
+      <input type="email" id="loginEmail" required autocomplete="username" placeholder="tucorreo@ejemplo.com">
+    </div>
+    <div class="campo">
+      <label>Contraseña</label>
+      <input type="password" id="loginPass" required autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn" type="submit" id="btnLogin">Entrar</button>
+    <p id="loginError" style="color:var(--bad); margin-top:14px; min-height:16px"></p>
+  </form>
+</div>
+
+<!-- ================= APLICACIÓN ================= -->
+<div id="app" class="oculto">
+  <header>
+    <div class="marca">
+      <div class="logo">🏋️</div>
+      <div>
+        <h1>TITA<span>NIUM</span></h1>
+        <small>CORTE DE CAJA</small>
+      </div>
+    </div>
+    <button class="btn-salir" id="btnSalir">Cerrar sesión</button>
+  </header>
+
+  <main>
+    <!-- ---------- Selector de fecha ---------- -->
+    <section class="card" style="margin-bottom:20px">
+      <h2>📅 Corte del día</h2>
+      <p class="sub">Elige el día que quieres revisar. Por defecto muestra el corte de hoy. Es solo lectura: nada se modifica en la base.</p>
+      <div class="barra-fecha">
+        <div class="campo">
+          <label>Fecha del corte</label>
+          <input type="date" id="fecha">
+        </div>
+        <button class="btn" id="btnVer">Ver corte</button>
+      </div>
+    </section>
+
+    <!-- ---------- Contenido del corte ---------- -->
+    <div id="corte"></div>
+  </main>
+</div>
+
+<div id="aviso"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN — Conexión a tu Supabase
+   ---------------------------------------------------------------------
+   La URL ya está puesta. Solo falta pegar tu "anon public key":
+   Supabase → Project Settings (engrane) → API → "Project API keys"
+   → copia la que dice  anon  public  y pégala entre las comillas.
+   ===================================================================== */
+const SUPABASE_URL  = "https://qwdswodysasskchrgquz.supabase.co";
+const SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3ZHN3b2R5c2Fzc2tjaHJncXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MjQ3OTgsImV4cCI6MjEwNjMwMDc5OH0.1XFVf34Vr8PDIUkf78bOvhIqk4mTPKlO74farozVdjs";   // 👈 SOLO cambia esto
+
+const { createClient } = window.supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ---------- Utilidades ---------- */
+function hoyISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function dinero(n){ return "$"+Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function aviso(msg, tipo="ok"){
+  const a=document.getElementById("aviso");
+  a.textContent=msg; a.className=tipo+" show";
+  setTimeout(()=>a.classList.remove("show"), 3200);
+}
+/* Hora local en formato HH:MM a partir de un timestamptz */
+function horaLocal(ts){
+  if(!ts) return "—";
+  const d=new Date(ts);
+  if(isNaN(d)) return "—";
+  return d.toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit",hour12:false});
+}
+
+/* ---------- Autenticación ---------- */
+document.getElementById("formLogin").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn=document.getElementById("btnLogin");
+  const err=document.getElementById("loginError");
+  err.textContent=""; btn.disabled=true; btn.textContent="Entrando...";
+  const { error } = await db.auth.signInWithPassword({
+    email:document.getElementById("loginEmail").value.trim(),
+    password:document.getElementById("loginPass").value
+  });
+  btn.disabled=false; btn.textContent="Entrar";
+  if(error){ err.textContent = "Correo o contraseña incorrectos."; }
+});
+
+document.getElementById("btnSalir").addEventListener("click", async ()=>{
+  await db.auth.signOut(); location.reload();
+});
+
+async function revisarSesion(){
+  const { data:{ session } } = await db.auth.getSession();
+  if(session){ entrarApp(); } else { document.getElementById("pantallaLogin").classList.remove("oculto"); }
+}
+db.auth.onAuthStateChange((_e, session)=>{ if(session) entrarApp(); });
+
+async function entrarApp(){
+  document.getElementById("pantallaLogin").classList.add("oculto");
+  document.getElementById("app").classList.remove("oculto");
+  // La fecha arranca en hoy y se carga el corte automáticamente
+  document.getElementById("fecha").value = hoyISO();
+  await verCorte();
+}
+
+/* ---------- Botón y cambio de fecha ---------- */
+document.getElementById("btnVer").addEventListener("click", verCorte);
+document.getElementById("fecha").addEventListener("change", verCorte);
+
+/* Suma segura de un arreglo de objetos por un campo numérico */
+function sumar(arr, campo){
+  return (arr||[]).reduce((acc,x)=>acc + Number(x[campo]||0), 0);
+}
+/* Suma filtrando por método de pago (el nombre del campo de método varía por tabla) */
+function sumarPorMetodo(arr, campoMonto, campoMetodo, metodo){
+  return (arr||[])
+    .filter(x=>(x[campoMetodo]||"").toLowerCase()===metodo)
+    .reduce((acc,x)=>acc + Number(x[campoMonto]||0), 0);
+}
+
+/* ---------- Consulta y armado del corte ---------- */
+async function verCorte(){
+  const fecha = document.getElementById("fecha").value || hoyISO();
+  const cont  = document.getElementById("corte");
+  cont.innerHTML = '<section class="card"><p class="vacio">Cargando corte...</p></section>';
+
+  // Como 'fecha' es timestamptz, filtramos por el rango completo del día
+  const desde = fecha + "T00:00:00";
+  const hasta = fecha + "T23:59:59.999";
+
+  try{
+    // Consultamos pagos (membresías) y ventas (productos) en paralelo
+    const [rPagos, rVentas] = await Promise.all([
+      db.from("pagos").select("monto,metodo,concepto,folio,fecha").gte("fecha",desde).lte("fecha",hasta),
+      db.from("ventas").select("total,metodo_pago,folio,fecha").gte("fecha",desde).lte("fecha",hasta)
+    ]);
+
+    if(rPagos.error) throw rPagos.error;
+    if(rVentas.error) throw rVentas.error;
+
+    // Aseguramos arreglos aunque venga null
+    const pagos  = rPagos.data  || [];
+    const ventas = rVentas.data || [];
+
+    pintarCorte(fecha, pagos, ventas);
+  }catch(err){
+    cont.innerHTML = '<section class="card"><p class="vacio">No se pudo cargar el corte.</p></section>';
+    aviso("Error al cargar el corte: "+(err.message||"revisa tu conexión"),"err");
+  }
+}
+
+/* ---------- Pintar resultado ---------- */
+function pintarCorte(fecha, pagos, ventas){
+  const cont = document.getElementById("corte");
+  const fechaBonita = fecha.split("-").reverse().join("/");
+
+  // Sin movimientos ese día → mensaje amable y salimos
+  if(pagos.length===0 && ventas.length===0){
+    cont.innerHTML = `<section class="card"><p class="vacio">Sin movimientos este día (${fechaBonita}) 🫧</p></section>`;
+    return;
+  }
+
+  /* ----- Cálculos: membresías (pagos) ----- */
+  const memEfe = sumarPorMetodo(pagos,"monto","metodo","efectivo");
+  const memTar = sumarPorMetodo(pagos,"monto","metodo","tarjeta");
+  const memTra = sumarPorMetodo(pagos,"monto","metodo","transferencia");
+  const memTotal = sumar(pagos,"monto");
+
+  /* ----- Cálculos: productos (ventas) ----- */
+  const proEfe = sumarPorMetodo(ventas,"total","metodo_pago","efectivo");
+  const proTar = sumarPorMetodo(ventas,"total","metodo_pago","tarjeta");
+  const proTra = sumarPorMetodo(ventas,"total","metodo_pago","transferencia");
+  const proTotal = sumar(ventas,"total");
+
+  /* ----- Totales por método (membresías + productos) ----- */
+  const totEfe = memEfe + proEfe;
+  const totTar = memTar + proTar;
+  const totTra = memTra + proTra;
+
+  const granTotal = memTotal + proTotal;
+  const numOps = pagos.length + ventas.length;
+
+  /* ----- Tarjetas de resumen ----- */
+  const tarjetas = `
+    <div class="resumen-grid">
+
+      <!-- Gran total del día -->
+      <div class="card card-total">
+        <div class="titulo-res">Gran total del día · ${fechaBonita}</div>
+        <div class="cifra">${dinero(granTotal)}</div>
+        <div class="ops">${numOps} operación(es) · ${pagos.length} membresía(s) + ${ventas.length} venta(s)</div>
+      </div>
+
+      <!-- Total por método -->
+      <div class="card">
+        <div class="titulo-res">Total por método de pago</div>
+        <div class="resumen">
+          <div class="fila"><span>💵 Efectivo</span><span>${dinero(totEfe)}</span></div>
+          <div class="fila"><span>💳 Tarjeta</span><span>${dinero(totTar)}</span></div>
+          <div class="fila"><span>🏦 Transferencia</span><span>${dinero(totTra)}</span></div>
+          <div class="fila" style="border-top:1px solid var(--line); margin-top:4px; padding-top:8px"><span>Total</span><b>${dinero(granTotal)}</b></div>
+        </div>
+      </div>
+
+      <!-- Ingresos por membresías -->
+      <div class="card">
+        <div class="titulo-res">Ingresos por membresías</div>
+        <div class="subtotal">${dinero(memTotal)}</div>
+        <div class="resumen">
+          <div class="fila"><span>💵 Efectivo</span><span>${dinero(memEfe)}</span></div>
+          <div class="fila"><span>💳 Tarjeta</span><span>${dinero(memTar)}</span></div>
+          <div class="fila"><span>🏦 Transferencia</span><span>${dinero(memTra)}</span></div>
+        </div>
+      </div>
+
+      <!-- Ingresos por productos -->
+      <div class="card">
+        <div class="titulo-res">Ingresos por productos</div>
+        <div class="subtotal">${dinero(proTotal)}</div>
+        <div class="resumen">
+          <div class="fila"><span>💵 Efectivo</span><span>${dinero(proEfe)}</span></div>
+          <div class="fila"><span>💳 Tarjeta</span><span>${dinero(proTar)}</span></div>
+          <div class="fila"><span>🏦 Transferencia</span><span>${dinero(proTra)}</span></div>
+        </div>
+      </div>
+
+    </div>`;
+
+  /* ----- Tabla: membresías cobradas (ordenadas por fecha/hora) ----- */
+  const pagosOrd = [...pagos].sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+  const filasMem = pagosOrd.length
+    ? pagosOrd.map(p=>`
+        <tr>
+          <td class="cod">${p.folio ?? "—"}</td>
+          <td style="color:var(--txt2)">${horaLocal(p.fecha)}</td>
+          <td>${p.concepto || "—"}</td>
+          <td>${etiquetaMetodo(p.metodo)}</td>
+          <td style="text-align:right; font-weight:700">${dinero(p.monto)}</td>
+        </tr>`).join("")
+    : '<tr><td colspan="5" class="vacio">Sin membresías cobradas este día</td></tr>';
+
+  const tablaMem = `
+    <section class="card" style="margin-bottom:20px">
+      <h2>🎫 Membresías cobradas</h2>
+      <p class="sub">${pagos.length} cobro(s) · ${dinero(memTotal)}</p>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>Folio</th><th>Hora</th><th>Concepto</th><th>Método</th><th style="text-align:right">Monto</th></tr></thead>
+          <tbody>${filasMem}</tbody>
+        </table>
+      </div>
+    </section>`;
+
+  /* ----- Tabla: ventas de productos (ordenadas por fecha/hora) ----- */
+  const ventasOrd = [...ventas].sort((a,b)=> new Date(a.fecha) - new Date(b.fecha));
+  const filasPro = ventasOrd.length
+    ? ventasOrd.map(v=>`
+        <tr>
+          <td class="cod">${v.folio ?? "—"}</td>
+          <td style="color:var(--txt2)">${horaLocal(v.fecha)}</td>
+          <td>${etiquetaMetodo(v.metodo_pago)}</td>
+          <td style="text-align:right; font-weight:700">${dinero(v.total)}</td>
+        </tr>`).join("")
+    : '<tr><td colspan="4" class="vacio">Sin ventas de productos este día</td></tr>';
+
+  const tablaPro = `
+    <section class="card">
+      <h2>🛒 Ventas de productos</h2>
+      <p class="sub">${ventas.length} venta(s) · ${dinero(proTotal)}</p>
+      <div class="tabla-wrap">
+        <table>
+          <thead><tr><th>Folio</th><th>Hora</th><th>Método</th><th style="text-align:right">Total</th></tr></thead>
+          <tbody>${filasPro}</tbody>
+        </table>
+      </div>
+    </section>`;
+
+  cont.innerHTML = tarjetas + tablaMem + tablaPro;
+}
+
+/* Píldora de color para el método de pago */
+function etiquetaMetodo(m){
+  const t=(m||"").toLowerCase();
+  if(t==="efectivo")      return '<span class="pill ok">Efectivo</span>';
+  if(t==="tarjeta")       return '<span class="pill warn">Tarjeta</span>';
+  if(t==="transferencia") return '<span class="pill gris">Transferencia</span>';
+  return '<span class="pill gris">'+(m||"—")+'</span>';
+}
+
+/* ---------- Arranque ---------- */
+if(SUPABASE_KEY==="PEGA_AQUI_TU_ANON_KEY"){
+  document.getElementById("loginError").textContent = "⚠ Falta pegar tu anon key en el código (línea de configuración).";
+}
+revisarSesion();
+</script>
+</body>
+</html>

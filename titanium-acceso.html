@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Titanium · Control de acceso</title>
+
+<!-- Librería: Supabase (base de datos). Aquí no se generan QR, solo se leen. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  /* ====================================================================
+     TITANIUM · Tema oscuro tipo gym (metálico + acento ámbar)
+     ==================================================================== */
+  :root{
+    --bg:#0d0f14; --bg2:#141821; --card:#1a1f2b; --card2:#20263485;
+    --line:#2a3141; --txt:#e8ecf3; --txt2:#9aa4b6; --txt3:#6b7488;
+    --acc:#ff7a1a; --acc2:#ffa04d; --ok:#2fd07a; --warn:#f7b731; --bad:#ff5964;
+    --radio:14px; --sombra:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    background:radial-gradient(1200px 600px at 80% -10%, #1b2130 0%, var(--bg) 55%);
+    color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased;
+  }
+  .oculto{display:none !important}
+  button{font-family:inherit; cursor:pointer}
+  input,select{font-family:inherit}
+
+  /* ---- Encabezado ---- */
+  header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 20px; background:#0b0d12cc; backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20;
+  }
+  .marca{display:flex; align-items:center; gap:12px}
+  .logo{
+    width:38px; height:38px; border-radius:10px; display:grid; place-items:center;
+    background:linear-gradient(135deg,var(--acc),#c94e00); color:#fff; font-size:20px;
+    box-shadow:0 4px 14px rgba(255,122,26,.4);
+  }
+  .marca h1{font-size:18px; letter-spacing:3px; font-weight:800}
+  .marca span{color:var(--acc)}
+  .marca small{display:block; color:var(--txt3); letter-spacing:2px; font-size:10px; font-weight:600}
+  .btn-salir{background:transparent; color:var(--txt2); border:1px solid var(--line); padding:8px 14px; border-radius:10px; font-size:13px}
+  .btn-salir:hover{color:var(--txt); border-color:var(--txt3)}
+
+  /* ---- Pestañas ---- */
+  nav.tabs{display:flex; gap:6px; padding:14px 20px 0; max-width:1100px; margin:0 auto; width:100%}
+  nav.tabs button{
+    background:transparent; color:var(--txt2); border:none; padding:12px 18px;
+    border-radius:12px 12px 0 0; font-size:14px; font-weight:600; position:relative;
+  }
+  nav.tabs button.on{color:var(--acc); background:var(--card)}
+  nav.tabs button.on::after{content:""; position:absolute; left:18px; right:18px; bottom:-1px; height:2px; background:var(--acc)}
+
+  main{max-width:1100px; margin:0 auto; padding:20px}
+
+  /* ---- Tarjetas / formularios ---- */
+  .card{background:var(--card); border:1px solid var(--line); border-radius:var(--radio); padding:22px; box-shadow:var(--sombra)}
+  .card h2{font-size:16px; margin-bottom:4px; display:flex; align-items:center; gap:8px}
+  .card .sub{color:var(--txt3); font-size:13px; margin-bottom:18px}
+  .grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px}
+  .campo{display:flex; flex-direction:column; gap:6px}
+  .campo label{font-size:12px; color:var(--txt2); font-weight:600; letter-spacing:.3px}
+  .campo label b{color:var(--acc)}
+  .campo input,.campo select{
+    background:var(--bg2); border:1px solid var(--line); color:var(--txt);
+    padding:11px 13px; border-radius:10px; font-size:14px; outline:none; width:100%;
+  }
+  .campo input:focus,.campo select:focus{border-color:var(--acc); box-shadow:0 0 0 3px rgba(255,122,26,.15)}
+  .campo .ayuda{font-size:11px; color:var(--txt3)}
+
+  .divisor{height:1px; background:var(--line); margin:22px 0}
+
+  .btn{
+    background:linear-gradient(135deg,var(--acc),#e05e00); color:#fff; border:none;
+    padding:13px 22px; border-radius:11px; font-size:15px; font-weight:700; letter-spacing:.3px;
+    box-shadow:0 6px 18px rgba(255,122,26,.35); transition:transform .05s;
+  }
+  .btn:hover{transform:translateY(-1px)} .btn:active{transform:translateY(0)}
+  .btn:disabled{opacity:.5; cursor:not-allowed; transform:none}
+  .btn.sec{background:var(--card2); color:var(--txt); box-shadow:none; border:1px solid var(--line)}
+  .btn.chico{padding:8px 14px; font-size:13px; border-radius:9px}
+
+  .resumen{background:var(--card2); border:1px dashed var(--line); border-radius:12px; padding:14px 16px; margin-top:4px}
+  .resumen .fila{display:flex; justify-content:space-between; font-size:14px; padding:4px 0}
+  .resumen .fila b{color:var(--acc2); font-size:18px}
+
+  /* ---- Buscador + tabla socios ---- */
+  .barra{display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap}
+  .barra input{flex:1; min-width:200px; background:var(--bg2); border:1px solid var(--line); color:var(--txt); padding:11px 14px; border-radius:10px; font-size:14px; outline:none}
+  .tabla-wrap{overflow-x:auto; border-radius:12px; border:1px solid var(--line)}
+  table{width:100%; border-collapse:collapse; font-size:14px; min-width:640px}
+  th{text-align:left; padding:12px 14px; color:var(--txt3); font-size:11px; letter-spacing:.5px; text-transform:uppercase; background:var(--bg2); border-bottom:1px solid var(--line)}
+  td{padding:12px 14px; border-bottom:1px solid var(--line); color:var(--txt)}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#ffffff05}
+  .cod{font-family:ui-monospace,monospace; color:var(--acc2); font-size:13px}
+  .pill{display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700}
+  .pill.ok{background:rgba(47,208,122,.15); color:var(--ok)}
+  .pill.warn{background:rgba(247,183,49,.15); color:var(--warn)}
+  .pill.bad{background:rgba(255,89,100,.15); color:var(--bad)}
+  .pill.gris{background:#ffffff10; color:var(--txt2)}
+  .vacio{text-align:center; padding:40px; color:var(--txt3)}
+
+  /* ---- Login ---- */
+  .login-wrap{min-height:100vh; display:grid; place-items:center; padding:20px}
+  .login{width:100%; max-width:380px; text-align:center}
+  .login .logo{width:64px; height:64px; font-size:32px; margin:0 auto 18px; border-radius:16px}
+  .login h1{letter-spacing:4px; font-weight:800; margin-bottom:6px}
+  .login h1 span{color:var(--acc)}
+  .login p{color:var(--txt3); font-size:13px; margin-bottom:26px}
+  .login .campo{text-align:left; margin-bottom:14px}
+  .login .btn{width:100%; margin-top:6px}
+
+  /* ---- Modal ---- */
+  .modal-bg{position:fixed; inset:0; background:#000a; display:grid; place-items:center; padding:20px; z-index:50}
+  .modal{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:24px; width:100%; max-width:460px; box-shadow:var(--sombra); max-height:90vh; overflow:auto}
+  .modal h2{margin-bottom:4px} .modal .cerrar{float:right; background:none; border:none; color:var(--txt3); font-size:22px; line-height:1}
+
+  /* ---- Aviso (toast) ---- */
+  #aviso{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); padding:14px 22px; border-radius:12px; font-size:14px; font-weight:600; box-shadow:var(--sombra); z-index:90; opacity:0; transition:opacity .25s, transform .25s; pointer-events:none; max-width:90%}
+  #aviso.show{opacity:1; transform:translateX(-50%) translateY(-4px)}
+  #aviso.ok{background:var(--ok); color:#04231a} #aviso.err{background:var(--bad); color:#2a0409}
+
+  /* ---- Confirmación con QR ---- */
+  .qr-box{text-align:center; padding:8px}
+  .qr-box #qr_contenedor{background:#fff; padding:14px; border-radius:12px; margin:14px auto; display:inline-block; line-height:0}
+  .qr-box .cod-grande{font-family:ui-monospace,monospace; font-size:22px; color:var(--acc2); font-weight:700; letter-spacing:1px}
+
+  /* ====================================================================
+     CONTROL DE ACCESO — estilos propios de esta pantalla
+     ==================================================================== */
+  /* Selector grande ENTRADA / SALIDA */
+  .modo-selector{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px}
+  .modo-btn{
+    padding:22px 14px; border-radius:14px; border:2px solid var(--line);
+    background:var(--card2); color:var(--txt2); font-size:20px; font-weight:800;
+    letter-spacing:1px; display:flex; align-items:center; justify-content:center; gap:10px;
+    transition:transform .05s, border-color .1s;
+  }
+  .modo-btn .ico{font-size:26px}
+  .modo-btn:active{transform:translateY(1px)}
+  .modo-btn.on-entrada{border-color:var(--ok); background:rgba(47,208,122,.12); color:var(--ok)}
+  .modo-btn.on-salida{border-color:var(--acc); background:rgba(255,122,26,.12); color:var(--acc2)}
+
+  /* Input gigante de escaneo */
+  #inputAcceso{
+    width:100%; text-align:center; font-size:30px; font-weight:700; letter-spacing:2px;
+    padding:22px 18px; border-radius:16px; border:2px solid var(--line);
+    background:var(--bg2); color:var(--txt); outline:none; font-family:ui-monospace,monospace;
+  }
+  #inputAcceso::placeholder{font-family:system-ui,sans-serif; font-size:17px; font-weight:500; letter-spacing:.5px; color:var(--txt3)}
+  #inputAcceso:focus{border-color:var(--acc); box-shadow:0 0 0 4px rgba(255,122,26,.18)}
+
+  /* Aforo */
+  .aforo{
+    display:flex; align-items:center; justify-content:center; gap:12px;
+    margin-top:14px; color:var(--txt2); font-size:15px; font-weight:600;
+  }
+  .aforo b{color:var(--ok); font-size:26px; font-family:ui-monospace,monospace}
+
+  /* Tarjeta de RESULTADO grande */
+  .resultado{
+    margin-top:20px; border-radius:20px; padding:34px 24px; text-align:center;
+    border:3px solid var(--line); background:var(--card2); min-height:230px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  }
+  .resultado.espera{color:var(--txt3)}
+  .resultado.espera .r-icono{font-size:52px; opacity:.5}
+  .resultado.espera .r-titulo{font-size:19px; font-weight:600; color:var(--txt3)}
+  .resultado.ok{border-color:var(--ok); background:rgba(47,208,122,.10)}
+  .resultado.bad{border-color:var(--bad); background:rgba(255,89,100,.10)}
+  .resultado .r-icono{font-size:66px; line-height:1}
+  .resultado .r-titulo{font-size:40px; font-weight:900; letter-spacing:1px}
+  .resultado.ok .r-titulo{color:var(--ok)}
+  .resultado.bad .r-titulo{color:var(--bad)}
+  .resultado .r-nombre{font-size:32px; font-weight:800; color:var(--txt); margin-top:4px}
+  .resultado .r-plan{font-size:18px; color:var(--txt2); font-weight:600}
+  .resultado .r-motivo{font-size:26px; font-weight:800; color:var(--bad); margin-top:2px}
+  .resultado .r-datos{display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:10px}
+  .resultado .r-dato{
+    background:#ffffff0d; border:1px solid var(--line); border-radius:12px;
+    padding:10px 16px; font-size:15px; color:var(--txt); font-weight:600;
+  }
+  .resultado .r-dato b{color:var(--acc2); font-size:20px; display:block}
+
+  @media(max-width:560px){
+    nav.tabs button{padding:11px 12px; font-size:13px}
+    main{padding:14px}
+    .card{padding:16px}
+    #inputAcceso{font-size:24px; padding:18px 14px}
+    .modo-btn{font-size:17px; padding:18px 10px}
+    .resultado .r-titulo{font-size:30px}
+    .resultado .r-nombre{font-size:24px}
+    .resultado .r-motivo{font-size:20px}
+    .resultado .r-icono{font-size:52px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= PANTALLA DE LOGIN ================= -->
+<div id="pantallaLogin" class="login-wrap">
+  <form class="login card" id="formLogin">
+    <div class="logo">🏋️</div>
+    <h1>TITA<span>NIUM</span></h1>
+    <p>Control de acceso · recepción</p>
+    <div class="campo">
+      <label>Correo</label>
+      <input type="email" id="loginEmail" required autocomplete="username" placeholder="tucorreo@ejemplo.com">
+    </div>
+    <div class="campo">
+      <label>Contraseña</label>
+      <input type="password" id="loginPass" required autocomplete="current-password" placeholder="••••••••">
+    </div>
+    <button class="btn" type="submit" id="btnLogin">Entrar</button>
+    <p id="loginError" style="color:var(--bad); margin-top:14px; min-height:16px"></p>
+  </form>
+</div>
+
+<!-- ================= APLICACIÓN ================= -->
+<div id="app" class="oculto">
+  <header>
+    <div class="marca">
+      <div class="logo">🏋️</div>
+      <div>
+        <h1>TITA<span>NIUM</span></h1>
+        <small>CONTROL DE ACCESO</small>
+      </div>
+    </div>
+    <button class="btn-salir" id="btnSalir">Cerrar sesión</button>
+  </header>
+
+  <main>
+    <!-- ---------- PANEL DE ESCANEO ---------- -->
+    <section class="card">
+      <h2>🔓 Registro de acceso</h2>
+      <p class="sub">Elige ENTRADA o SALIDA, luego escanea el QR del socio o teclea su código / PIN y presiona Enter.</p>
+
+      <!-- Selector grande ENTRADA / SALIDA -->
+      <div class="modo-selector">
+        <button type="button" class="modo-btn on-entrada" id="btnModoEntrada" onclick="cambiarModo('entrada')">
+          <span class="ico">➡️</span> ENTRADA
+        </button>
+        <button type="button" class="modo-btn" id="btnModoSalida" onclick="cambiarModo('salida')">
+          <span class="ico">⬅️</span> SALIDA
+        </button>
+      </div>
+
+      <!-- Input gigante de escaneo -->
+      <input type="text" id="inputAcceso" autocomplete="off" autocapitalize="off" spellcheck="false"
+             placeholder="Escanea el QR o teclea el código / PIN">
+
+      <!-- Aforo -->
+      <div class="aforo">
+        <span>👥 Dentro ahora:</span> <b id="aforoNum">—</b>
+      </div>
+
+      <!-- Tarjeta de resultado grande -->
+      <div class="resultado espera" id="resultado">
+        <div class="r-icono">🎫</div>
+        <div class="r-titulo">Esperando escaneo…</div>
+      </div>
+    </section>
+
+    <!-- ---------- ÚLTIMOS ACCESOS ---------- -->
+    <section class="card" style="margin-top:20px">
+      <div class="barra" style="margin-bottom:12px; justify-content:space-between; align-items:center">
+        <h2 style="margin:0">🕒 Últimos accesos</h2>
+        <button class="btn sec chico" onclick="cargarUltimos()">↻ Actualizar</button>
+      </div>
+      <div class="tabla-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Hora</th><th>Socio</th><th>Código</th><th>Movimiento</th><th>Resultado</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyUltimos">
+            <tr><td colspan="5" class="vacio">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="aviso"></div>
+
+<script>
+/* =====================================================================
+   CONFIGURACIÓN — Conexión a tu Supabase
+   ---------------------------------------------------------------------
+   La URL ya está puesta. Solo falta pegar tu "anon public key":
+   Supabase → Project Settings (engrane) → API → "Project API keys"
+   → copia la que dice  anon  public  y pégala entre las comillas.
+   ===================================================================== */
+const SUPABASE_URL  = "https://qwdswodysasskchrgquz.supabase.co";
+const SUPABASE_KEY  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3ZHN3b2R5c2Fzc2tjaHJncXV6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA3MjQ3OTgsImV4cCI6MjEwNjMwMDc5OH0.1XFVf34Vr8PDIUkf78bOvhIqk4mTPKlO74farozVdjs";   // 👈 SOLO cambia esto
+
+const { createClient } = window.supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* Estado de la pantalla */
+let modoActual = "entrada";   // "entrada" | "salida"
+let validando  = false;       // evita dobles disparos mientras se valida
+
+/* ---------- Utilidades ---------- */
+function hoyISO(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function dinero(n){ return "$"+Number(n||0).toLocaleString("es-MX",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function aviso(msg, tipo="ok"){
+  const a=document.getElementById("aviso");
+  a.textContent=msg; a.className=tipo+" show";
+  setTimeout(()=>a.classList.remove("show"), 3200);
+}
+/* Hora corta (HH:MM) a partir de un timestamp de la BD */
+function horaCorta(ts){
+  if(!ts) return "—";
+  const d=new Date(ts);
+  if(isNaN(d)) return "—";
+  return d.toLocaleTimeString("es-MX",{hour:"2-digit",minute:"2-digit"});
+}
+
+/* ---------- Autenticación ---------- */
+document.getElementById("formLogin").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const btn=document.getElementById("btnLogin");
+  const err=document.getElementById("loginError");
+  err.textContent=""; btn.disabled=true; btn.textContent="Entrando...";
+  const { error } = await db.auth.signInWithPassword({
+    email:document.getElementById("loginEmail").value.trim(),
+    password:document.getElementById("loginPass").value
+  });
+  btn.disabled=false; btn.textContent="Entrar";
+  if(error){ err.textContent = "Correo o contraseña incorrectos."; }
+});
+
+document.getElementById("btnSalir").addEventListener("click", async ()=>{
+  await db.auth.signOut(); location.reload();
+});
+
+async function revisarSesion(){
+  const { data:{ session } } = await db.auth.getSession();
+  if(session){ entrarApp(); } else { document.getElementById("pantallaLogin").classList.remove("oculto"); }
+}
+db.auth.onAuthStateChange((_e, session)=>{ if(session) entrarApp(); });
+
+async function entrarApp(){
+  document.getElementById("pantallaLogin").classList.add("oculto");
+  document.getElementById("app").classList.remove("oculto");
+  await actualizarAforo();
+  await cargarUltimos();
+  enfocarInput();
+}
+
+/* ---------- Selector de modo ENTRADA / SALIDA ---------- */
+function cambiarModo(m){
+  modoActual = m;
+  const bE=document.getElementById("btnModoEntrada");
+  const bS=document.getElementById("btnModoSalida");
+  bE.classList.toggle("on-entrada", m==="entrada");
+  bS.classList.toggle("on-salida",  m==="salida");
+  enfocarInput();
+}
+
+/* ---------- Foco permanente del input ---------- */
+function enfocarInput(){
+  const inp=document.getElementById("inputAcceso");
+  if(inp && !document.getElementById("app").classList.contains("oculto")){
+    inp.focus();
+  }
+}
+/* Si el usuario hace clic en cualquier parte vacía, regresa el foco al input
+   (así la pistola siempre "teclea" adentro). No robamos el foco si está
+   escribiendo en otro campo (login, botones no cuentan). */
+document.addEventListener("click", ()=>{
+  const activo=document.activeElement;
+  const esCampo = activo && (activo.tagName==="INPUT" || activo.tagName==="SELECT" || activo.tagName==="TEXTAREA");
+  if(!esCampo) setTimeout(enfocarInput, 30);
+});
+
+/* ---------- Beep opcional (nunca debe romper nada) ---------- */
+let _audioCtx=null;
+function beep(permitido){
+  try{
+    _audioCtx = _audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    const ctx=_audioCtx;
+    const osc=ctx.createOscillator();
+    const gan=ctx.createGain();
+    osc.type="square";
+    osc.frequency.value = permitido ? 1200 : 300;   // agudo=ok / grave=denegado
+    gan.gain.value=0.06;
+    osc.connect(gan); gan.connect(ctx.destination);
+    osc.start();
+    // el denegado suena un poco más largo
+    osc.stop(ctx.currentTime + (permitido ? 0.14 : 0.35));
+  }catch(e){ /* silencio: el audio es un lujo, jamás bloquea el acceso */ }
+}
+
+/* ---------- Escaneo: al presionar Enter en el input ---------- */
+document.getElementById("inputAcceso").addEventListener("keydown", (e)=>{
+  if(e.key==="Enter"){
+    e.preventDefault();
+    const valor=e.target.value.trim();
+    if(valor) validarAcceso(valor);
+    else enfocarInput();
+  }
+});
+
+/* ---------- Validación contra Supabase (RPC del servidor) ---------- */
+async function validarAcceso(valor){
+  if(validando) return;           // evita doble disparo
+  validando=true;
+  const inp=document.getElementById("inputAcceso");
+  inp.disabled=true;
+
+  try{
+    const { data, error } = await db.rpc('validar_acceso', {
+      p_identificador: valor,
+      p_tipo: modoActual
+    });
+
+    if(error){
+      // Falló la llamada al servidor: mostramos denegado con el error y avisamos
+      pintarResultado({ permitido:false, motivo:"Error de conexión", nombre:null });
+      aviso("No se pudo validar: "+(error.message||"error de servidor"), "err");
+      beep(false);
+      return;
+    }
+
+    // La función puede devolver el objeto directo o un arreglo con un objeto
+    const r = Array.isArray(data) ? (data[0]||null) : data;
+    if(!r){
+      pintarResultado({ permitido:false, motivo:"No identificado", nombre:null });
+      beep(false);
+      return;
+    }
+
+    const permitido = r.permitido===true;
+    pintarResultado(r);
+    beep(permitido);
+
+  }catch(err){
+    pintarResultado({ permitido:false, motivo:"Error inesperado", nombre:null });
+    aviso("Error: "+(err.message||"no se pudo validar"), "err");
+    beep(false);
+  }finally{
+    // Limpia, reactiva y re-enfoca el input para el siguiente escaneo
+    inp.value="";
+    inp.disabled=false;
+    validando=false;
+    enfocarInput();
+    // Refresca aforo y lista tras cada intento (el servidor ya registró el acceso)
+    actualizarAforo();
+    cargarUltimos();
+  }
+}
+
+/* ---------- Pinta la tarjeta de resultado grande ---------- */
+function pintarResultado(r){
+  const box=document.getElementById("resultado");
+  const permitido = r && r.permitido===true;
+  const esSalida  = (r && r.tipo ? r.tipo : modoActual) === "salida";
+  const nombre = r && r.nombre ? r.nombre : "";
+
+  box.classList.remove("espera","ok","bad");
+
+  if(permitido){
+    box.classList.add("ok");
+    const titulo = esSalida ? "✅ SALIDA REGISTRADA" : "✅ ADELANTE";
+    // Datos restantes (solo los que vengan con valor)
+    const datos=[];
+    if(r.dias_restantes!=null)    datos.push(`<div class="r-dato">Días<br><b>${r.dias_restantes}</b></div>`);
+    if(r.visitas_restantes!=null) datos.push(`<div class="r-dato">Visitas<br><b>${r.visitas_restantes}</b></div>`);
+    if(r.horas_restantes!=null)   datos.push(`<div class="r-dato">Horas<br><b>${r.horas_restantes}</b></div>`);
+
+    box.innerHTML = `
+      <div class="r-icono">${esSalida ? "👋" : "💪"}</div>
+      <div class="r-titulo">${titulo}</div>
+      ${nombre ? `<div class="r-nombre">${nombre}</div>` : ""}
+      ${r.plan ? `<div class="r-plan">${r.plan}${r.codigo?` · <span class="cod">${r.codigo}</span>`:""}</div>` : (r.codigo?`<div class="r-plan"><span class="cod">${r.codigo}</span></div>`:"")}
+      ${datos.length ? `<div class="r-datos">${datos.join("")}</div>` : ""}
+    `;
+  }else{
+    box.classList.add("bad");
+    const motivo = (r && r.motivo) ? r.motivo : "Acceso no permitido";
+    box.innerHTML = `
+      <div class="r-icono">⛔</div>
+      <div class="r-titulo">ACCESO DENEGADO</div>
+      ${nombre ? `<div class="r-nombre">${nombre}</div>` : ""}
+      <div class="r-motivo">${motivo}</div>
+    `;
+  }
+}
+
+/* ---------- Aforo actual (personas dentro hoy) ---------- */
+async function actualizarAforo(){
+  const el=document.getElementById("aforoNum");
+  try{
+    const { data, error } = await db.rpc('aforo_actual');
+    if(error){ el.textContent="—"; return; }
+    // Puede venir como número directo o dentro de un arreglo
+    let n = data;
+    if(Array.isArray(data)) n = data[0];
+    if(n!=null && typeof n==="object") n = Object.values(n)[0];
+    el.textContent = (n==null || isNaN(Number(n))) ? "—" : Number(n);
+  }catch(e){
+    el.textContent="—";
+  }
+}
+
+/* ---------- Últimos accesos (con embed de socios por la FK) ---------- */
+async function cargarUltimos(){
+  const tb=document.getElementById("tbodyUltimos");
+  try{
+    const { data, error } = await db
+      .from("accesos")
+      .select("momento,tipo,resultado,motivo_bloqueo,socios(nombre_completo,codigo)")
+      .order("momento",{ascending:false})
+      .limit(15);
+
+    if(error){
+      tb.innerHTML=`<tr><td colspan="5" class="vacio">Error: ${error.message}</td></tr>`;
+      return;
+    }
+    const lista = data||[];
+    if(!lista.length){
+      tb.innerHTML='<tr><td colspan="5" class="vacio">Aún no hay accesos registrados hoy.</td></tr>';
+      return;
+    }
+
+    tb.innerHTML = lista.map(a=>{
+      const soc = a.socios || {};
+      const nombre = soc.nombre_completo || "No identificado";
+      const codigo = soc.codigo || "—";
+      const esSalida = a.tipo==="salida";
+      const permitido = a.resultado==="permitido";
+      const mov = esSalida
+        ? '<span class="pill gris">⬅️ Salida</span>'
+        : '<span class="pill ok">➡️ Entrada</span>';
+      const res = permitido
+        ? '<span class="pill ok">Permitido</span>'
+        : `<span class="pill bad">Bloqueado${a.motivo_bloqueo?` · ${a.motivo_bloqueo}`:""}</span>`;
+      return `
+        <tr>
+          <td style="color:var(--txt2)">${horaCorta(a.momento)}</td>
+          <td>${nombre}</td>
+          <td class="cod">${codigo}</td>
+          <td>${mov}</td>
+          <td>${res}</td>
+        </tr>`;
+    }).join("");
+  }catch(err){
+    tb.innerHTML=`<tr><td colspan="5" class="vacio">Error: ${err.message||"no se pudo cargar"}</td></tr>`;
+  }
+}
+
+/* ---------- Re-enfoque de seguridad: si por algo se pierde el foco,
+             lo recuperamos periódicamente mientras la app está visible. ---------- */
+setInterval(()=>{
+  const activo=document.activeElement;
+  const esOtroCampo = activo && (activo.tagName==="INPUT" && activo.id!=="inputAcceso");
+  if(!esOtroCampo) enfocarInput();
+}, 2500);
+
+/* ---------- Arranque ---------- */
+if(SUPABASE_KEY==="PEGA_AQUI_TU_ANON_KEY"){
+  document.getElementById("loginError").textContent = "⚠ Falta pegar tu anon key en el código (línea de configuración).";
+}
+revisarSesion();
+</script>
+</body>
+</html>
